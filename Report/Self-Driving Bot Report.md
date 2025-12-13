@@ -1,2 +1,0 @@
-# Self-Driving Bot Report
----
