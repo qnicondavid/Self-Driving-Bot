@@ -1,4 +1,4 @@
-# Robot Movements Report
+# Robot Movements
 ---
 ## Robot Configuration
 The robot is driven by four `DC` motors arranged in a mecanum-wheel configuration, allowing omnidirectional movement. 
