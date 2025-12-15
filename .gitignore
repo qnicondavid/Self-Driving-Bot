@@ -1,0 +1,14 @@
+# Ignore the target folder
+Code/GUI/target/
+
+# Ignore compiled Arduino files
+*.hex
+*.elf
+
+# Ignore logs and temp files
+*.log
+*.tmp
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
