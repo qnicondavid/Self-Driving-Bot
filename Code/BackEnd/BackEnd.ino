@@ -23,24 +23,27 @@ class Microcontroller {
       pinMode(csPin, OUTPUT);
     }
 
-    void enableWiFi() {
-      digitalWrite(enPin, HIGH);
-      delay(100);
+  void enableWiFi() {
+    digitalWrite(enPin, HIGH);
+    delay(100);
 
-      WiFi.setPins(csPin, irqPin, rstPin, enPin);
+    WiFi.setPins(csPin, irqPin, rstPin, enPin);
 
-      int status = WiFi.beginAP(ssid, password);
-      if (status != WL_AP_LISTENING) {
+    IPAddress localIP(192, 168, 4, 1);
+    WiFi.config(localIP);
+
+    int status = WiFi.beginAP(ssid, password);
+    if (status != WL_AP_LISTENING) {
         Serial.print("Failed to start AP, status=");
         Serial.println(status);
         return;
-      }
-
-      Serial.print("AP started: ");
-      Serial.println(ssid);
-
-      server.begin();
     }
+
+    Serial.print("AP started: ");
+    Serial.println(ssid);
+
+    server.begin();
+  }
 
     WiFiServer& getServer() {
       return server;
@@ -174,9 +177,29 @@ public:
       BL.stop();
       BR.stop();
     }
+
+  void printInformation(Print &out) {
+    out.println("Sensor readings:");
+    out.println();
+
+    out.print("IR Left (Analog): ");
+    out.println(irLeft.readAnalog());
+
+    out.print("IR Left (Digital): ");
+    out.println(irLeft.readDigital());
+
+    out.print("IR Right (Analog): ");
+    out.println(irRight.readAnalog());
+
+    out.print("IR Right (Digital): ");
+    out.println(irRight.readDigital());
+
+    out.print("Ultrasonic Distance (cm): ");
+    out.println(ur.getDistanceCM());
+  }
 };
 
-Microcontroller mcu(8,7,4,2,"Group 19","Group 19");
+Microcontroller mcu(8,7,4,2,"Group 19","ShutDown1");
 
 IrSensor irLeft(A1, A0);
 IrSensor irRight(A3, A2);
@@ -190,10 +213,45 @@ Motor BR(9, 10, true);
 
 Robot robot(irLeft, irRight, ur, FL, FR, BL, BR, mcu);
 
+WiFiClient client;
+unsigned long lastSend = 0;
+
+void printHandler() {
+    if (!client || !client.connected()) {
+        client = mcu.getServer().available();
+        lastSend = 0;
+    }
+
+    if (client && client.connected()) {
+        while (client.available()) client.read();
+
+        if (lastSend == 0) {
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-Type: text/plain");
+            client.println("Connection: keep-alive");
+            client.println();
+            lastSend = millis();
+        }
+
+        if (millis() - lastSend >= 500) {
+            robot.printInformation(client);
+            client.println("----------------------");
+            client.flush();
+            lastSend = millis();
+        }
+    }
+}
+
 void setup() {
-  mcu.enableWiFi();   
+  mcu.enableWiFi();
 }
 
 void loop() {
-
+  printHandler();
 }
+
+
+
+
+
+
