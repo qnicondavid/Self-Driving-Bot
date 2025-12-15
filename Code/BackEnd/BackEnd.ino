@@ -47,13 +47,13 @@ class Microcontroller {
     }
 };
 
-class irSensor {
+class IrSensor {
   private:
     int analogPin;
     int digitalPin;
 
   public:
-    irSensor(int aPin, int dPin) {
+    IrSensor(int aPin, int dPin) {
       analogPin = aPin;
       digitalPin = dPin;
       pinMode(analogPin, INPUT);
@@ -69,13 +69,13 @@ class irSensor {
     }
 };
 
-class urSensor {
+class UrSensor {
   private:
     int trigPin;
     int echoPin;
 
   public:
-    urSensor(int trig, int echo) {
+    UrSensor(int trig, int echo) {
       trigPin = trig;
       echoPin = echo;
       pinMode(trigPin, OUTPUT);
@@ -140,8 +140,8 @@ class Motor {
 
 class Robot {
   private:
-    irSensor &irLeft, &irRight;
-    urSensor &ur;
+    IrSensor &irLeft, &irRight;
+    UrSensor &ur;
 
     Motor &FL, &FR, &BL, &BR;
 
@@ -149,9 +149,9 @@ class Robot {
 
 public:
     Robot(
-      irSensor &irL,
-      irSensor &irR,
-      urSensor &u,
+      IrSensor &irL,
+      IrSensor &irR,
+      UrSensor &u,
       Motor &fl,
       Motor &fr,
       Motor &bl,
@@ -176,10 +176,24 @@ public:
     }
 };
 
+Microcontroller mcu(8,7,4,2,"Group 19","Group 19");
+
+IrSensor irLeft(A1, A0);
+IrSensor irRight(A3, A2);
+
+UrSensor ur(0, 1);
+
+Motor FL(6, 5, false);   
+Motor FR(11, 12, true);  
+Motor BL(A4, A5, false); 
+Motor BR(9, 10, true);
+
+Robot robot(irLeft, irRight, ur, FL, FR, BL, BR, mcu);
+
 void setup() {
-  
+  mcu.enableWiFi();   
 }
 
 void loop() {
-  
+
 }
