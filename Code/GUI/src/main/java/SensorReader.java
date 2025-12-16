@@ -53,17 +53,36 @@ public class SensorReader {
         }
     }
 
-    private void updateSensorValue(String line) {
-        if (line.startsWith("IR Left (Analog):")) {
-            ui.irLeftAnalogLabel.setText(line);
-        } else if (line.startsWith("IR Left (Digital):")) {
-            ui.irLeftDigitalLabel.setText(line);
-        } else if (line.startsWith("IR Right (Analog):")) {
-            ui.irRightAnalogLabel.setText(line);
-        } else if (line.startsWith("IR Right (Digital):")) {
-            ui.irRightDigitalLabel.setText(line);
-        } else if (line.startsWith("Ultrasonic Distance")) {
-            ui.ultrasonicLabel.setText(line);
-        }
+	private void updateSensorValue(String line) {
+
+    if (line.startsWith("IR Left (Analog):")) {
+        ui.irLeftAnalogLabel.setText(line);
+
+    } else if (line.startsWith("IR Left (Digital):")) {
+        ui.irLeftDigitalLabel.setText(line);
+
+    } else if (line.startsWith("IR Right (Analog):")) {
+        ui.irRightAnalogLabel.setText(line);
+
+    } else if (line.startsWith("IR Right (Digital):")) {
+        ui.irRightDigitalLabel.setText(line);
+
+    } else if (line.startsWith("Ultrasonic Distance")) {
+        ui.ultrasonicLabel.setText(line);
+
+    // 🔹 MOTORS (signed speeds)
+    } else if (line.startsWith("Front Left:")) {
+        ui.motorFLLabel.setText(line);
+
+    } else if (line.startsWith("Front Right:")) {
+        ui.motorFRLabel.setText(line);
+
+    } else if (line.startsWith("Back Left:")) {
+        ui.motorBLLabel.setText(line);
+
+    } else if (line.startsWith("Back Right:")) {
+        ui.motorBRLabel.setText(line);
     }
+	}
+
 }

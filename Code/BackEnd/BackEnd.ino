@@ -139,6 +139,11 @@ class Motor {
     bool isForward() {
       return forward;
     }
+
+    int getSignedSpeed() {
+      if (speed == 0) return 0;
+      return forward ? speed : -speed;
+    }
 };
 
 class Robot {
@@ -196,7 +201,23 @@ public:
 
     out.print("Ultrasonic Distance (cm): ");
     out.println(ur.getDistanceCM());
+
+    out.println();
+    out.println("Motor speeds (signed):");
+
+    out.print("Front Left: ");
+    out.println(FL.getSignedSpeed());
+
+    out.print("Front Right: ");
+    out.println(FR.getSignedSpeed());
+
+    out.print("Back Left: ");
+    out.println(BL.getSignedSpeed());
+
+    out.print("Back Right: ");
+    out.println(BR.getSignedSpeed());
   }
+
 };
 
 Microcontroller mcu(8,7,4,2,"Group 19","ShutDown1");
