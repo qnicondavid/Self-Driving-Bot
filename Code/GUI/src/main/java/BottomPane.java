@@ -23,6 +23,8 @@ public class BottomPane extends VBox {
         Label bottomTitle = new Label("Bot Data");
         bottomTitle.setFont(Font.font("Consolas", 20));
         bottomTitle.setStyle("-fx-text-fill: #e97132;");
+        bottomTitle.setMaxWidth(Double.MAX_VALUE);
+        bottomTitle.setStyle(bottomTitle.getStyle() + "-fx-alignment: center;");
 
         Label[] labels = {
             statusLabel,

@@ -13,9 +13,9 @@ public class MecanumVisualizer extends Canvas {
     private double heading = 0.0;
 
     private static final double ROBOT_RADIUS = 15.0;
-    private static final double MOTOR_SCALE = 0.2; // Scale motor input for visualization
-    private static final double OMEGA_SCALE = 0.02; // Rotation scale
-    private static final double MOVE_SCALE = 0.5;   // Position scale
+    private static final double MOTOR_SCALE = 0.2;
+    private static final double OMEGA_SCALE = 0.02;
+    private static final double MOVE_SCALE = 0.5;
 
     private final ArrayList<double[]> path = new ArrayList<>();
 
@@ -47,37 +47,31 @@ public class MecanumVisualizer extends Canvas {
     }
 
     public void stepRobot() {
-        // Compute velocities
         double vy = (FL + FR + BL + BR) / 4.0 * MOTOR_SCALE;
         double vx = (-FL + FR + BL - BR) / 4.0 * MOTOR_SCALE;
         double omega = (-FL + FR - BL + BR) / 4.0 * MOTOR_SCALE;
 
-        // Update heading
         heading += omega * OMEGA_SCALE;
 
-        // Transform to global coordinates
         double dx = vx * Math.cos(heading) - vy * Math.sin(heading);
         double dy = vx * Math.sin(heading) + vy * Math.cos(heading);
 
         posX += dx * MOVE_SCALE;
         posY -= dy * MOVE_SCALE;
 
-        // Keep inside canvas
         posX = Math.max(ROBOT_RADIUS, Math.min(getWidth() - ROBOT_RADIUS, posX));
         posY = Math.max(ROBOT_RADIUS, Math.min(getHeight() - ROBOT_RADIUS, posY));
 
         path.add(new double[]{posX, posY});
-        if (path.size() > 2000) path.remove(0); // prevent memory issues
+        if (path.size() > 2000) path.remove(0);
     }
 
     public void draw() {
         GraphicsContext g = getGraphicsContext2D();
 
-        // Background
         g.setFill(Color.web("#151515"));
         g.fillRect(0, 0, getWidth(), getHeight());
 
-        // Path
         g.setStroke(Color.CYAN);
         g.setLineWidth(2);
         for (int i = 0; i < path.size() - 1; i++) {
@@ -86,11 +80,9 @@ public class MecanumVisualizer extends Canvas {
             g.strokeLine(p1[0], p1[1], p2[0], p2[1]);
         }
 
-        // Robot
         g.setFill(Color.ORANGE);
         g.fillOval(posX - ROBOT_RADIUS, posY - ROBOT_RADIUS, ROBOT_RADIUS * 2, ROBOT_RADIUS * 2);
 
-        // Heading line
         double hx = posX + Math.cos(heading) * ROBOT_RADIUS * 1.5;
         double hy = posY - Math.sin(heading) * ROBOT_RADIUS * 1.5;
         g.setStroke(Color.RED);
