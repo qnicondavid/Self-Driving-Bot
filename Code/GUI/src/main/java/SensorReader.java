@@ -1,88 +1,100 @@
 import javafx.application.Platform;
-import java.io.InputStream;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.Socket;
 
-public class SensorReader {
+public class SensorReader implements Runnable {
 
-    private final BottomPane ui;
+    private static final String IP = "192.168.4.1";
+    private static final int PORT = 80;
 
-    public SensorReader(BottomPane ui) {
-        this.ui = ui;
+    private final BottomPane bottom;
+    private final RightPane right;
+
+    private int fl, fr, bl, br;
+
+    public SensorReader(BottomPane bottom, RightPane right) {
+        this.bottom = bottom;
+        this.right = right;
     }
 
-    public void readSensorData() {
-        String ip = "192.168.4.1";
-        int port = 80;
+    @Override
+    public void run() {
+        while (true) {
+            try (Socket socket = new Socket(IP, PORT)) {
 
-        try (Socket socket = new Socket(ip, port)) {
-            InputStream in = socket.getInputStream();
-            StringBuilder buffer = new StringBuilder();
-            boolean headerSkipped = false;
-            int ch;
+                Platform.runLater(() ->
+                        bottom.statusLabel.setText("Status: Connected")
+                );
 
-            while ((ch = in.read()) != -1) {
-                char c = (char) ch;
+                BufferedReader in = new BufferedReader(
+                        new InputStreamReader(socket.getInputStream())
+                );
 
-                if (!headerSkipped) {
-                    buffer.append(c);
-                    if (buffer.toString().endsWith("\r\n\r\n")) {
-                        buffer.setLength(0);
-                        headerSkipped = true;
-                        Platform.runLater(() ->
-                            ui.statusLabel.setText("Status: Connected")
-                        );
-                    }
-                    continue;
+                String line;
+                while ((line = in.readLine()) != null && !line.isEmpty()) {}
+
+                while ((line = in.readLine()) != null) {
+                    handleLine(line.trim());
                 }
 
-                if (c == '\n') {
-                    String line = buffer.toString().trim();
-                    buffer.setLength(0);
-                    if (!line.isEmpty()) {
-                        Platform.runLater(() -> updateSensorValue(line));
-                    }
-                } else if (c != '\r') {
-                    buffer.append(c);
-                }
+            } catch (Exception e) {
+                Platform.runLater(() ->
+                        bottom.statusLabel.setText("Status: Disconnected")
+                );
+
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ignored) {}
             }
-
-        } catch (Exception e) {
-            Platform.runLater(() ->
-                ui.statusLabel.setText("Connection error: " + e.getMessage())
-            );
         }
     }
 
-	private void updateSensorValue(String line) {
+    private void handleLine(String line) {
+        if (line.isEmpty() || line.startsWith("-")) return;
 
-    if (line.startsWith("IR Left (Analog):")) {
-        ui.irLeftAnalogLabel.setText(line);
-
-    } else if (line.startsWith("IR Left (Digital):")) {
-        ui.irLeftDigitalLabel.setText(line);
-
-    } else if (line.startsWith("IR Right (Analog):")) {
-        ui.irRightAnalogLabel.setText(line);
-
-    } else if (line.startsWith("IR Right (Digital):")) {
-        ui.irRightDigitalLabel.setText(line);
-
-    } else if (line.startsWith("Ultrasonic Distance")) {
-        ui.ultrasonicLabel.setText(line);
-
-    // 🔹 MOTORS (signed speeds)
-    } else if (line.startsWith("Front Left:")) {
-        ui.motorFLLabel.setText(line);
-
-    } else if (line.startsWith("Front Right:")) {
-        ui.motorFRLabel.setText(line);
-
-    } else if (line.startsWith("Back Left:")) {
-        ui.motorBLLabel.setText(line);
-
-    } else if (line.startsWith("Back Right:")) {
-        ui.motorBRLabel.setText(line);
+        Platform.runLater(() -> updateUI(line));
     }
-	}
 
+    private void updateUI(String line) {
+
+        if (line.startsWith("IR Left (Analog):")) {
+            bottom.irLeftAnalogLabel.setText(line);
+
+        } else if (line.startsWith("IR Left (Digital):")) {
+            bottom.irLeftDigitalLabel.setText(line);
+
+        } else if (line.startsWith("IR Right (Analog):")) {
+            bottom.irRightAnalogLabel.setText(line);
+
+        } else if (line.startsWith("IR Right (Digital):")) {
+            bottom.irRightDigitalLabel.setText(line);
+
+        } else if (line.startsWith("Ultrasonic Distance")) {
+            bottom.ultrasonicLabel.setText(line);
+
+        } else if (line.startsWith("Front Left:")) {
+            fl = parseValue(line);
+            bottom.motorFLLabel.setText(line);
+
+        } else if (line.startsWith("Front Right:")) {
+            fr = parseValue(line);
+            bottom.motorFRLabel.setText(line);
+
+        } else if (line.startsWith("Back Left:")) {
+            bl = parseValue(line);
+            bottom.motorBLLabel.setText(line);
+
+        } else if (line.startsWith("Back Right:")) {
+            br = parseValue(line);
+            bottom.motorBRLabel.setText(line);
+
+            right.updateMotors(fl, fr, bl, br);
+        }
+    }
+
+    private int parseValue(String line) {
+        return Integer.parseInt(line.split(":")[1].trim());
+    }
 }

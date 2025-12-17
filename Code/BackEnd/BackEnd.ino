@@ -146,6 +146,8 @@ class Motor {
     }
 };
 
+void resetPID();
+
 class Robot {
   private:
     IrSensor &irLeft, &irRight;
@@ -154,6 +156,8 @@ class Robot {
     Motor &FL, &FR, &BL, &BR;
 
     Microcontroller &mcu;
+
+    bool inPID = false; 
 
 public:
     Robot(
@@ -218,6 +222,66 @@ public:
     out.println(BR.getSignedSpeed());
   }
 
+  void startPID() {
+      stopAll();
+      resetPID();
+      inPID = true;
+  }
+
+  void stopPID() {
+      inPID = false;
+      stopAll();
+      resetPID();
+  }
+
+  bool isInPID() {
+      return inPID;
+  }
+
+    int getLeftIR()  { return irLeft.readAnalog(); }
+    int getRightIR() { return irRight.readAnalog(); }
+
+    void setLeftMotors(int speed) {
+      FL.set(abs(speed), speed >= 0);
+      BL.set(abs(speed), speed >= 0);
+    }
+
+    void setRightMotors(int speed) {
+      FR.set(abs(speed), speed >= 0);
+      BR.set(abs(speed), speed >= 0);
+    }
+
+};
+
+class RequestHandler {
+  private:
+    Robot &robot;
+
+  public:
+    RequestHandler(Robot &r) : robot(r) {}
+
+    void handle(WiFiClient &client) {
+      if (!client || !client.connected()) return;
+
+      String request = client.readStringUntil('\n');
+
+      while (client.available()) client.read();
+
+      if (request.indexOf("GET /pid/on") >= 0) {
+        robot.startPID();
+      }
+
+      if (request.indexOf("GET /pid/off") >= 0) {
+        robot.stopPID();
+      }
+
+      client.println("HTTP/1.1 200 OK");
+      client.println("Content-Type: text/plain");
+      client.println("Connection: close");
+      client.println();
+      client.println("PID State:");
+      client.println(robot.isInPID() ? "ON" : "OFF");
+    }
 };
 
 Microcontroller mcu(8,7,4,2,"Group 19","ShutDown1");
@@ -234,32 +298,34 @@ Motor BR(9, 10, true);
 
 Robot robot(irLeft, irRight, ur, FL, FR, BL, BR, mcu);
 
-WiFiClient client;
+RequestHandler requestHandler(robot);
+
+WiFiClient streamClient;  
+WiFiClient controlClient;  
 unsigned long lastSend = 0;
 
 void printHandler() {
-    if (!client || !client.connected()) {
-        client = mcu.getServer().available();
-        lastSend = 0;
+    if (!streamClient || !streamClient.connected()) {
+        WiFiClient newClient = mcu.getServer().available();
+        if (newClient) streamClient = newClient;
     }
 
-    if (client && client.connected()) {
-        while (client.available()) client.read();
+    if (!controlClient || !controlClient.connected()) {
+        WiFiClient newClient = mcu.getServer().available();
+        if (newClient) controlClient = newClient;
+    }
 
-        if (lastSend == 0) {
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-Type: text/plain");
-            client.println("Connection: keep-alive");
-            client.println();
-            lastSend = millis();
-        }
+    if (streamClient && streamClient.connected() && millis() - lastSend >= 500) {
+        robot.printInformation(streamClient);
+        streamClient.println("----------------------");
+        streamClient.flush();
+        lastSend = millis();
+    }
 
-        if (millis() - lastSend >= 500) {
-            robot.printInformation(client);
-            client.println("----------------------");
-            client.flush();
-            lastSend = millis();
-        }
+    if (controlClient && controlClient.connected() && controlClient.available()) {
+        requestHandler.handle(controlClient);
+        delay(5);
+        controlClient.stop();
     }
 }
 
@@ -269,8 +335,68 @@ void setup() {
 
 void loop() {
   printHandler();
+  pidControl();
 }
 
+unsigned long lastMillis = 0;
+double e = 0.0;      
+double ef = 0.0;      
+double integralSum = 0.0; 
+double previousError = 0.0;
+
+int baseSpeed  = 80;
+int minSpeed   = -120;  
+int maxSpeed   = 120;
+int leftSpeed  = 0;
+int rightSpeed = 0;
+
+double alpha     = 0.3;   
+double kP        = 100;   
+double kI        = 0.05;  
+double kD        = 0;   
+double correction= 0.0;
+double maxIntegral = 200.0;
+
+void pidControl() {
+  if (!robot.isInPID()) return;
+
+  unsigned long now = millis();
+  double dt = (now - lastMillis) / 1000.0;
+  if (dt <= 0.0) dt = 0.001;
+
+  int leftSensor  = constrain(robot.getLeftIR(),  0, 1023);
+  int rightSensor = constrain(robot.getRightIR(), 0, 1023);
+
+  e  = double(leftSensor) - double(rightSensor);
+  ef = alpha * e + (1.0 - alpha) * ef;
+
+  integralSum += ef * dt;
+
+  double maxIsum = maxIntegral / max(fabs(kI), 1e-9);
+  integralSum = constrain(integralSum, -maxIsum, maxIsum);
+
+  correction = kP * ef + kI * integralSum + kD * ((ef - previousError) / dt);
+
+  leftSpeed  = constrain(round(baseSpeed - correction), minSpeed, maxSpeed);
+  rightSpeed = constrain(round(baseSpeed + correction), minSpeed, maxSpeed);
+
+  robot.setLeftMotors(leftSpeed);
+  robot.setRightMotors(rightSpeed);
+
+  previousError = ef;
+  lastMillis = now;
+}
+
+void resetPID() {
+  lastMillis = millis();
+  e = 0.0;      
+  ef = 0.0;      
+  integralSum = 0.0; 
+  previousError = 0.0;
+  leftSpeed  = 0;
+  rightSpeed = 0;
+  correction= 0.0;
+}
 
 
 

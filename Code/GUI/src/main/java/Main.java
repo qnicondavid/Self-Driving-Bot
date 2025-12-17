@@ -34,10 +34,10 @@ public class Main extends Application {
         stage.setScene(scene);
         stage.show();
 
-        SensorReader reader = new SensorReader(bottomPane);
-        Thread sensorThread = new Thread(reader::readSensorData);
-        sensorThread.setDaemon(true);
-        sensorThread.start();
+		SensorReader reader = new SensorReader(bottomPane, rightPane);
+		Thread sensorThread = new Thread(reader);
+		sensorThread.setDaemon(true);
+		sensorThread.start();
     }
 
     public static void main(String[] args) {
