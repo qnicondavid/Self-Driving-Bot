@@ -48,7 +48,7 @@ public class MecanumVisualizer extends Canvas {
 
     public void stepRobot() {
         double vy = (FL + FR + BL + BR) / 4.0 * MOTOR_SCALE;
-        double vx = (-FL + FR + BL - BR) / 4.0 * MOTOR_SCALE;
+        double vx = (FL - FR - BL + BR) / 4.0 * MOTOR_SCALE;
         double omega = (-FL + FR - BL + BR) / 4.0 * MOTOR_SCALE;
 
         heading += omega * OMEGA_SCALE;

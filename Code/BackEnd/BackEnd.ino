@@ -270,6 +270,12 @@ public:
       BR.set(abs(speed), speed >= 0);
     }
 
+  void move(int speeds[4]) {
+    FL.set(abs(speeds[0]), speeds[0] >= 0);
+    FR.set(abs(speeds[1]), speeds[1] >= 0);
+    BL.set(abs(speeds[2]), speeds[2] >= 0);
+    BR.set(abs(speeds[3]), speeds[3] >= 0);
+  }
 };
 
 class RequestHandler {
@@ -285,6 +291,61 @@ class RequestHandler {
       String request = client.readStringUntil('\n');
 
       while (client.available()) client.read();
+
+      if (request.indexOf("GET /move/north") >= 0) {
+        int north[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
+        robot.move(north);
+      }
+
+      if (request.indexOf("GET /move/south") >= 0) {
+        int south[4] = { -baseSpeed, -baseSpeed, -baseSpeed, -baseSpeed };
+        robot.move(south);
+      }
+
+      if (request.indexOf("GET /move/east") >= 0) {
+        int east[4] = { baseSpeed, -baseSpeed, -baseSpeed, baseSpeed };
+        robot.move(east);
+      }
+
+      if (request.indexOf("GET /move/west") >= 0) {
+        int east[4] = { -baseSpeed, baseSpeed, baseSpeed, -baseSpeed };
+        robot.move(east);
+      }
+
+      if (request.indexOf("GET /move/cw") >= 0) {
+        int cw[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
+        robot.move(cw);
+      }
+
+      if (request.indexOf("GET /move/ccw") >= 0) {
+        int ccw[4] = { -baseSpeed, baseSpeed, -baseSpeed, baseSpeed };
+        robot.move(ccw);
+      }
+
+      if (request.indexOf("GET /move/nw") >= 0) {
+        int nw[4] = { 0, baseSpeed, baseSpeed, 0 };
+        robot.move(nw);
+      }
+
+      if (request.indexOf("GET /move/ne") >= 0) {
+        int ne[4] = { baseSpeed, 0, 0, baseSpeed };
+        robot.move(ne);
+      }
+
+      if (request.indexOf("GET /move/sw") >= 0) {
+        int sw[4] = { -baseSpeed, 0, 0, -baseSpeed };
+        robot.move(sw);
+      }
+
+      if (request.indexOf("GET /move/se") >= 0) {
+        int se[4] = { 0, -baseSpeed, -baseSpeed, 0 };
+        robot.move(se);
+      }
+
+      if (request.indexOf("GET /move/stop") >= 0) {
+        int stopMove[4] = { 0, 0, 0, 0 };
+        robot.move(stopMove);
+      }
 
       if (request.indexOf("GET /pid/on") >= 0) {
         robot.startPID();
