@@ -15,10 +15,13 @@ import java.util.Set;
 public class TopPane extends VBox {
 
     private boolean pidEnabled = false;
-
+	private boolean reverseEnabled = false;
+	
     private final Label pidHint;
     private final Label movementHint;
     private final Label infoLabel;
+	private final Label reverseHint;
+
 
     private int baseSpeed = 80;
     private int maxSpeed = 120;
@@ -44,12 +47,16 @@ public class TopPane extends VBox {
         pidHint = new Label(getPidText());
         pidHint.setFont(Font.font("Consolas", 20));
         pidHint.setStyle("-fx-text-fill: #e97132;");
+		
+		reverseHint = new Label(getReverseText());
+		reverseHint.setFont(Font.font("Consolas", 20));
+		reverseHint.setStyle("-fx-text-fill: #e97132;");
 
         movementHint = new Label(getMovementText());
         movementHint.setFont(Font.font("Consolas", 20));
         movementHint.setStyle("-fx-text-fill: #e97132;");
 
-        leftColumn.getChildren().addAll(label1, pidHint, movementHint);
+        leftColumn.getChildren().addAll(label1, pidHint, reverseHint, movementHint);
 
         infoLabel = new Label(getInfoText());
         infoLabel.setFont(Font.font("Consolas", 20));
@@ -76,6 +83,10 @@ public class TopPane extends VBox {
     private String getPidText() {
         return "'P' - PID: " + (pidEnabled ? "ON" : "OFF");
     }
+	
+	private String getReverseText() {
+		return "'R' - Reverse: " + (reverseEnabled ? "ON" : "OFF");
+	}
 
     private String getMovementText() {
         return "Hold 'key' to perform:\n" +
@@ -104,6 +115,11 @@ public class TopPane extends VBox {
             togglePID();
             return;
         }
+		
+		if (code == KeyCode.R) {
+			toggleReverse();
+			return;
+		}
 
         int number = 0;
         if (pressedKeys.contains(KeyCode.DIGIT1)) number = 1;
@@ -129,18 +145,51 @@ public class TopPane extends VBox {
         if (!pidEnabled) updateMovement();
     }
 
-    private void togglePID() {
-        pidEnabled = !pidEnabled;
-        pidHint.setText(getPidText());
-        sendRequestAsync(pidEnabled ? "/pid/on" : "/pid/off");
+	private void togglePID() {
+		pidEnabled = !pidEnabled;
 
-        pressedKeys.remove(KeyCode.W);
-        pressedKeys.remove(KeyCode.A);
-        pressedKeys.remove(KeyCode.S);
-        pressedKeys.remove(KeyCode.D);
-        pressedKeys.remove(KeyCode.Q);
-        pressedKeys.remove(KeyCode.E);
-    }
+		if (pidEnabled && reverseEnabled) {
+			reverseEnabled = false;
+			reverseHint.setText(getReverseText());
+			sendRequestAsync("/move/stop");
+		}
+
+		pidHint.setText(getPidText());
+		sendRequestAsync(pidEnabled ? "/pid/on" : "/pid/off");
+
+		pressedKeys.remove(KeyCode.W);
+		pressedKeys.remove(KeyCode.A);
+		pressedKeys.remove(KeyCode.S);
+		pressedKeys.remove(KeyCode.D);
+		pressedKeys.remove(KeyCode.Q);
+		pressedKeys.remove(KeyCode.E);
+	}
+
+	private void toggleReverse() {
+		reverseEnabled = !reverseEnabled;
+
+		if (reverseEnabled && pidEnabled) {
+			pidEnabled = false;
+			pidHint.setText(getPidText());
+			sendRequestAsync("/pid/off");
+		}
+
+		reverseHint.setText(getReverseText());
+
+		if (reverseEnabled) {
+			sendRequestAsync("/move/south");
+		} else {
+			sendRequestAsync("/move/stop");
+		}
+
+		pressedKeys.remove(KeyCode.W);
+		pressedKeys.remove(KeyCode.A);
+		pressedKeys.remove(KeyCode.S);
+		pressedKeys.remove(KeyCode.D);
+		pressedKeys.remove(KeyCode.Q);
+		pressedKeys.remove(KeyCode.E);
+	}
+
 
     private void processChange(int number, boolean increase) {
         switch (number) {
@@ -154,6 +203,7 @@ public class TopPane extends VBox {
     }
 
     private void updateMovement() {
+		if (reverseEnabled) return;
         boolean w = pressedKeys.contains(KeyCode.W);
         boolean a = pressedKeys.contains(KeyCode.A);
         boolean s = pressedKeys.contains(KeyCode.S);
