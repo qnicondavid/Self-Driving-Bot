@@ -28,6 +28,9 @@ public class TopPane extends VBox {
     private double kP = 100;
     private double kI = 0.05;
     private double kD = 0;
+	
+	private int dStop = 1;
+	private int deltaD = 1;
 
     private final Set<KeyCode> pressedKeys = new HashSet<>();
 
@@ -95,17 +98,21 @@ public class TopPane extends VBox {
                "'Q/E': Rotate CCW/CW";
     }
 
-    private String getInfoText() {
-        return String.format(
-                "Press 'number' and '+' or '-':\n" +
-                "1. Base Speed = %d\n" +
-                "2. Max Speed = %d\n" +
-                "3. kP = %.2f\n" +
-                "4. kI = %.3f\n" +
-                "5. kD = %.2f",
-                baseSpeed, maxSpeed, kP, kI, kD
-        );
-    }
+	private String getInfoText() {
+		return String.format(
+            "Press 'number' and '+' or '-':\n" +
+            "1. Base Speed = %d\n" +
+            "2. Max Speed = %d\n" +
+            "3. kP = %.2f\n" +
+            "4. kI = %.3f\n" +
+            "5. kD = %.2f\n" +
+            "6. d = %d cm\n" +
+            "7. Δd = %d cm",
+            baseSpeed, maxSpeed, kP, kI, kD, dStop, deltaD
+		);
+	}
+
+
 
     private void handleKeyPressed(KeyEvent event) {
         KeyCode code = event.getCode();
@@ -127,6 +134,8 @@ public class TopPane extends VBox {
         else if (pressedKeys.contains(KeyCode.DIGIT3)) number = 3;
         else if (pressedKeys.contains(KeyCode.DIGIT4)) number = 4;
         else if (pressedKeys.contains(KeyCode.DIGIT5)) number = 5;
+		else if (pressedKeys.contains(KeyCode.DIGIT6)) number = 6; 
+		else if (pressedKeys.contains(KeyCode.DIGIT7)) number = 7; 
 
         if (number != 0) {
             if (pressedKeys.contains(KeyCode.PLUS) || pressedKeys.contains(KeyCode.EQUALS)) {
@@ -191,16 +200,20 @@ public class TopPane extends VBox {
 	}
 
 
-    private void processChange(int number, boolean increase) {
-        switch (number) {
-            case 1 -> { baseSpeed += increase ? 5 : -5; sendValue("/pid/base", baseSpeed); }
-            case 2 -> { maxSpeed += increase ? 5 : -5; sendValue("/pid/speed", maxSpeed); }
-            case 3 -> { kP += increase ? 10 : -10; sendValue("/pid/kp", kP); }
-            case 4 -> { kI += increase ? 0.01 : -0.01; sendValue("/pid/ki", kI); }
-            case 5 -> { kD += increase ? 0.01 : -0.01; sendValue("/pid/kd", kD); }
-        }
-        infoLabel.setText(getInfoText());
-    }
+	private void processChange(int number, boolean increase) {
+		switch (number) {
+			case 1 -> { baseSpeed += increase ? 5 : -5; sendValue("/pid/base", baseSpeed); }
+			case 2 -> { maxSpeed += increase ? 5 : -5; sendValue("/pid/speed", maxSpeed); }
+			case 3 -> { kP += increase ? 10 : -10; sendValue("/pid/kp", kP); }
+			case 4 -> { kI += increase ? 0.01 : -0.01; sendValue("/pid/ki", kI); }
+			case 5 -> { kD += increase ? 0.01 : -0.01; sendValue("/pid/kd", kD); }
+			case 6 -> { dStop += increase ? 1 : -1; sendValue("/emergency/stop", dStop); }
+			case 7 -> { deltaD += increase ? 1 : -1; sendValue("/emergency/delta", deltaD); }
+		}
+
+		infoLabel.setText(getInfoText());
+	}
+
 
     private void updateMovement() {
 		if (reverseEnabled) return;

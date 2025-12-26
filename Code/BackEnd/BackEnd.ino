@@ -167,6 +167,9 @@ double kD        = 0;
 double correction= 0.0;
 double maxIntegral = 200.0;
 
+int dStop   = 1;
+int deltaD  = 1;   
+
 class Robot {
   private:
     IrSensor &irLeft, &irRight;
@@ -177,6 +180,8 @@ class Robot {
     Microcontroller &mcu;
 
     bool inPID = false; 
+
+    bool emergencyStop = false;
 
 public:
     Robot(
@@ -226,6 +231,10 @@ public:
     out.println(ur.getDistanceCM());
 
     out.println();
+    out.print("EMERGENCY STOP: ");
+    out.println(emergencyStop ? "ACTIVE" : "CLEAR");
+
+    out.println();
     out.println("Motor speeds (signed):");
 
     out.print("Front Left: ");
@@ -255,6 +264,25 @@ public:
 
   bool isInPID() {
       return inPID;
+  }
+
+  void engageEmergencyStop() {
+    if (emergencyStop) return;
+      emergencyStop = true;
+    emergencyHalt();
+  }
+
+  void releaseEmergencyStop() {
+    emergencyStop = false;
+  }
+
+  void emergencyHalt() {
+    stopAll();
+    stopPID();
+  }
+
+  bool isEmergencyStopped() {
+    return emergencyStop;
   }
 
     int getLeftIR()  { return irLeft.readAnalog(); }
@@ -291,6 +319,11 @@ class RequestHandler {
       String request = client.readStringUntil('\n');
 
       while (client.available()) client.read();
+
+      if (robot.isEmergencyStopped() && request.indexOf("/move/") >= 0) {
+        robot.stopAll();
+        return;
+      }
 
       if (request.indexOf("GET /move/north") >= 0) {
         int north[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
@@ -348,7 +381,11 @@ class RequestHandler {
       }
 
       if (request.indexOf("GET /pid/on") >= 0) {
-        robot.startPID();
+        if (robot.isEmergencyStopped()) {
+          robot.stopPID();   
+        } else {
+          robot.startPID(); 
+        }
       }
 
       if (request.indexOf("GET /pid/off") >= 0) {
@@ -373,6 +410,9 @@ class RequestHandler {
         maxSpeed = abs(value);
         minSpeed = -abs(value);
       }
+
+      if (request.indexOf("GET /emergency/stop") >= 0) dStop = value;
+      if (request.indexOf("GET /emergency/delta") >= 0) deltaD = value;
 
       client.println("HTTP/1.1 200 OK");
       client.println("Content-Type: text/plain");
@@ -433,11 +473,13 @@ void setup() {
 }
 
 void loop() {
+  emergencyControl();
   printHandler();
   pidControl();
 }
 
 void pidControl() {
+  if (robot.isEmergencyStopped()) return;
   if (!robot.isInPID()) return;
 
   unsigned long now = millis();
@@ -477,3 +519,17 @@ void resetPID() {
   rightSpeed = 0;
   correction= 0.0;
 }
+
+void emergencyControl() {
+  int dist = ur.getDistanceCM();
+
+  if (!robot.isEmergencyStopped() && dist <= dStop) {
+    robot.engageEmergencyStop();
+  }
+
+  if (robot.isEmergencyStopped() && dist >= (dStop + deltaD)) {
+    robot.releaseEmergencyStop();
+  }
+}
+
+

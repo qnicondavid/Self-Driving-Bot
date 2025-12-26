@@ -73,6 +73,9 @@ public class SensorReader implements Runnable {
 
         } else if (line.startsWith("Ultrasonic Distance")) {
             bottom.ultrasonicLabel.setText(line);
+			
+		} else if (line.startsWith("EMERGENCY STOP:")) {
+            bottom.emergencyLabel.setText(line);
 
         } else if (line.startsWith("Front Left:")) {
             fl = parseValue(line);

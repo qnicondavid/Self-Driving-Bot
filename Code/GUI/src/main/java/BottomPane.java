@@ -10,6 +10,8 @@ public class BottomPane extends VBox {
     public Label irRightAnalogLabel = new Label("IR Right (Analog): --");
     public Label irRightDigitalLabel = new Label("IR Right (Digital): --");
     public Label ultrasonicLabel = new Label("Ultrasonic Distance (cm): --");
+	public Label emergencyLabel = new Label("Emergency Stop: --");
+
 
     public Label motorFLLabel = new Label("Front Left: --");
     public Label motorFRLabel = new Label("Front Right: --");
@@ -29,6 +31,7 @@ public class BottomPane extends VBox {
         Label[] labels = {
             statusLabel,
             ultrasonicLabel,
+			emergencyLabel,
             irLeftAnalogLabel,
             irLeftDigitalLabel,
             irRightAnalogLabel,
@@ -50,16 +53,17 @@ public class BottomPane extends VBox {
 
         sensorGrid.add(statusLabel, 0, 0);
         sensorGrid.add(ultrasonicLabel, 0, 1);
+		sensorGrid.add(emergencyLabel, 0, 2);
 
-        sensorGrid.add(irLeftAnalogLabel, 0, 2);
-        sensorGrid.add(irLeftDigitalLabel, 0, 3);
-        sensorGrid.add(irRightAnalogLabel, 0, 4);
-        sensorGrid.add(irRightDigitalLabel, 0, 5);
+        sensorGrid.add(irLeftAnalogLabel, 0, 3);
+        sensorGrid.add(irLeftDigitalLabel, 0, 4);
+        sensorGrid.add(irRightAnalogLabel, 0, 5);
+        sensorGrid.add(irRightDigitalLabel, 0, 6);
 
-        sensorGrid.add(motorFLLabel, 0, 6);
-        sensorGrid.add(motorFRLabel, 0, 7);
-        sensorGrid.add(motorBLLabel, 0, 8);
-        sensorGrid.add(motorBRLabel, 0, 9);
+        sensorGrid.add(motorFLLabel, 0, 7);
+        sensorGrid.add(motorFRLabel, 0, 8);
+        sensorGrid.add(motorBLLabel, 0, 9);
+        sensorGrid.add(motorBRLabel, 0, 10);
 
         this.getChildren().addAll(bottomTitle, sensorGrid);
         this.setSpacing(10);
