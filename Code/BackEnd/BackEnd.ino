@@ -509,6 +509,10 @@ void pidControl() {
   lastMillis = now;
 }
 
+void dBangBangControl() {
+  
+}
+
 void resetPID() {
   lastMillis = millis();
   e = 0.0;      

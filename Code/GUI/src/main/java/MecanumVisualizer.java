@@ -1,7 +1,9 @@
 import javafx.animation.AnimationTimer;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
+import javafx.scene.transform.Affine;
 
 import java.util.ArrayList;
 
@@ -12,16 +14,21 @@ public class MecanumVisualizer extends Canvas {
     private double posX, posY;
     private double heading = 0.0;
 
-    private static final double ROBOT_RADIUS = 15.0;
-    private static final double MOTOR_SCALE = 0.2;
-    private static final double OMEGA_SCALE = 0.02;
-    private static final double MOVE_SCALE = 0.5;
+    private double ROBOT_RADIUS = 70.0;
+    private double MOTOR_SCALE = 0.2;
+    private double OMEGA_SCALE = 0.02;
+    private double MOVE_SCALE = 0.05;
 
     private final ArrayList<double[]> path = new ArrayList<>();
 
+    private final Image robotImage;
+
     public MecanumVisualizer(double width, double height) {
         super(width, height);
-        resetToCenter();
+        positionRobot();
+
+        robotImage = new Image(getClass().getResource("/robot.png").toExternalForm(),
+                               ROBOT_RADIUS * 2, ROBOT_RADIUS * 2, true, true);
 
         new AnimationTimer() {
             @Override
@@ -31,6 +38,18 @@ public class MecanumVisualizer extends Canvas {
             }
         }.start();
     }
+	
+	public void setMotorScale(double motorScale) {
+		this.MOTOR_SCALE = motorScale;
+	}
+	
+	public void setOmegaScale(double omegaScale) {
+		this.OMEGA_SCALE = omegaScale;
+	}
+		
+	public void setMoveScale(double moveScale) {
+		this.MOVE_SCALE = moveScale;
+	}
 
     public void updateMotors(int fl, int fr, int bl, int br) {
         this.FL = fl;
@@ -39,9 +58,9 @@ public class MecanumVisualizer extends Canvas {
         this.BR = br;
     }
 
-    private void resetToCenter() {
-        posX = getWidth() / 2.0;
-        posY = getHeight() / 2.0;
+    private void positionRobot() {
+        posX = 390;
+        posY = 390;
         path.clear();
         path.add(new double[]{posX, posY});
     }
@@ -63,7 +82,7 @@ public class MecanumVisualizer extends Canvas {
         posY = Math.max(ROBOT_RADIUS, Math.min(getHeight() - ROBOT_RADIUS, posY));
 
         path.add(new double[]{posX, posY});
-        if (path.size() > 2000) path.remove(0);
+        if (path.size() > 3000) path.remove(0);
     }
 
     public void draw() {
@@ -72,7 +91,7 @@ public class MecanumVisualizer extends Canvas {
         g.setFill(Color.web("#151515"));
         g.fillRect(0, 0, getWidth(), getHeight());
 
-        g.setStroke(Color.CYAN);
+        g.setStroke(Color.web("#0f9ed5"));
         g.setLineWidth(2);
         for (int i = 0; i < path.size() - 1; i++) {
             double[] p1 = path.get(i);
@@ -80,13 +99,10 @@ public class MecanumVisualizer extends Canvas {
             g.strokeLine(p1[0], p1[1], p2[0], p2[1]);
         }
 
-        g.setFill(Color.ORANGE);
-        g.fillOval(posX - ROBOT_RADIUS, posY - ROBOT_RADIUS, ROBOT_RADIUS * 2, ROBOT_RADIUS * 2);
-
-        double hx = posX + Math.cos(heading) * ROBOT_RADIUS * 1.5;
-        double hy = posY - Math.sin(heading) * ROBOT_RADIUS * 1.5;
-        g.setStroke(Color.RED);
-        g.setLineWidth(2);
-        g.strokeLine(posX, posY, hx, hy);
+        Affine old = g.getTransform();
+        g.translate(posX, posY);
+        g.rotate(-Math.toDegrees(heading));
+        g.drawImage(robotImage, -ROBOT_RADIUS, -ROBOT_RADIUS);
+        g.setTransform(old);
     }
 }
