@@ -162,7 +162,7 @@ int rightSpeed = 0;
 
 double alpha     = 0.3;   
 double kP        = 200;   
-double kI        = 0;  
+double kI        = 0.01;  
 double kD        = 0;   
 double correction= 0.0;
 double maxIntegral = 200.0;
@@ -183,6 +183,7 @@ class Robot {
 
     bool emergencyStop = false;
 
+    char telemetryBuf[512];
 public:
     Robot(
       IrSensor &irL,
@@ -212,43 +213,39 @@ public:
     }
 
   void printInformation(Print &out) {
-    out.println("Sensor readings:");
-    out.println();
+    snprintf(
+      telemetryBuf,
+      sizeof(telemetryBuf),
+      "Sensor readings:\n"
+      "\n"
+      "IR Left (Analog): %d\n"
+      "IR Left (Digital): %d\n"
+      "IR Right (Analog): %d\n"
+      "IR Right (Digital): %d\n"
+      "Ultrasonic Distance (cm): %d\n"
+      "\n"
+      "EMERGENCY STOP: %s\n"
+      "\n"
+      "Motor speeds (signed):\n"
+      "Front Left: %d\n"
+      "Front Right: %d\n"
+      "Back Left: %d\n"
+      "Back Right: %d\n",
+      irLeft.readAnalog(),
+      irLeft.readDigital(),
+      irRight.readAnalog(),
+      irRight.readDigital(),
+      getDistance(), 
+      emergencyStop ? "ACTIVE" : "CLEAR",
+      FL.getSignedSpeed(),
+      FR.getSignedSpeed(),
+      BL.getSignedSpeed(),
+      BR.getSignedSpeed()
+    );
 
-    out.print("IR Left (Analog): ");
-    out.println(irLeft.readAnalog());
-
-    out.print("IR Left (Digital): ");
-    out.println(irLeft.readDigital());
-
-    out.print("IR Right (Analog): ");
-    out.println(irRight.readAnalog());
-
-    out.print("IR Right (Digital): ");
-    out.println(irRight.readDigital());
-
-    out.print("Ultrasonic Distance (cm): ");
-    out.println(ur.getDistanceCM());
-
-    out.println();
-    out.print("EMERGENCY STOP: ");
-    out.println(emergencyStop ? "ACTIVE" : "CLEAR");
-
-    out.println();
-    out.println("Motor speeds (signed):");
-
-    out.print("Front Left: ");
-    out.println(FL.getSignedSpeed());
-
-    out.print("Front Right: ");
-    out.println(FR.getSignedSpeed());
-
-    out.print("Back Left: ");
-    out.println(BL.getSignedSpeed());
-
-    out.print("Back Right: ");
-    out.println(BR.getSignedSpeed());
+    out.print(telemetryBuf);   
   }
+
 
   void startPID() {
       stopAll();
@@ -302,6 +299,11 @@ public:
     FR.set(abs(speeds[1]), speeds[1] >= 0);
     BL.set(abs(speeds[2]), speeds[2] >= 0);
     BR.set(abs(speeds[3]), speeds[3] >= 0);
+  }
+  long getDistance() {
+    if(isInPID())
+      return 999;
+    return ur.getDistanceCM();
   }
 };
 
@@ -462,21 +464,17 @@ void printHandler() {
 
     if (controlClient && controlClient.connected() && controlClient.available()) {
         requestHandler.handle(controlClient);
-        delay(5);
-        controlClient.stop();
     }
 }
 
 void setup() {
   mcu.enableWiFi();
-  resetPID();
-  robot.startPID();
 }
 
 void loop() {
-  //emergencyControl();
-  printHandler();
-  pidControl();
+    emergencyControl();
+    printHandler();
+    pidControl();
 }
 
 void pidControl() {
@@ -522,6 +520,7 @@ void pidControl() {
 
   previousError = ef;
   lastMillis = now;
+
 }
 
 void resetPID() {
@@ -536,7 +535,7 @@ void resetPID() {
 }
 
 void emergencyControl() {
-  int dist = ur.getDistanceCM();
+  int dist = robot.getDistance();
 
   if (!robot.isEmergencyStopped() && dist <= dStop) {
     robot.engageEmergencyStop();

@@ -9,17 +9,8 @@ import java.util.function.Consumer;
 
 public class RobotController {
 
-    private boolean pidEnabled = true;
+    private boolean pidEnabled = false;
     private boolean reverseEnabled = false;
-
-    public int baseSpeed = 80;
-    public int maxSpeed = 100;
-    public double kP = 200;
-    public double kI = 0.05;
-    public double kD = 0;
-
-    public int dStop = 1;
-    public int deltaD = 1;
 
     private final Set<KeyCode> pressedKeys = new HashSet<>();
 
