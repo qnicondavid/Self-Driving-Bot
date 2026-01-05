@@ -9,17 +9,17 @@ import java.util.function.Consumer;
 
 public class RobotController {
 
-    private boolean pidEnabled = false;
+    private boolean pidEnabled = true;
     private boolean reverseEnabled = false;
 
-    private int baseSpeed = 80;
-    private int maxSpeed = 120;
-    private double kP = 100;
-    private double kI = 0.05;
-    private double kD = 0;
+    public int baseSpeed = 80;
+    public int maxSpeed = 100;
+    public double kP = 200;
+    public double kI = 0.05;
+    public double kD = 0;
 
-    private int dStop = 1;
-    private int deltaD = 1;
+    public int dStop = 1;
+    public int deltaD = 1;
 
     private final Set<KeyCode> pressedKeys = new HashSet<>();
 
@@ -69,7 +69,6 @@ public class RobotController {
 
         sendRequestAsync(pidEnabled ? "/pid/on" : "/pid/off");
         clearMovementKeys();
-        onStateChanged.run();
     }
 
     private void toggleReverse() {
@@ -82,7 +81,6 @@ public class RobotController {
 
         sendRequestAsync(reverseEnabled ? "/move/south" : "/move/stop");
         clearMovementKeys();
-        onStateChanged.run();
     }
 
     private void updateMovement() {

@@ -154,15 +154,15 @@ double ef = 0.0;
 double integralSum = 0.0; 
 double previousError = 0.0;
 
-int baseSpeed  = 80;
-int minSpeed   = -120;  
-int maxSpeed   = 120;
+int baseSpeed  = 120;
+int minSpeed   = -200;  
+int maxSpeed   = 200;
 int leftSpeed  = 0;
 int rightSpeed = 0;
 
 double alpha     = 0.3;   
-double kP        = 100;   
-double kI        = 0.05;  
+double kP        = 200;   
+double kI        = 0;  
 double kD        = 0;   
 double correction= 0.0;
 double maxIntegral = 200.0;
@@ -278,7 +278,6 @@ public:
 
   void emergencyHalt() {
     stopAll();
-    stopPID();
   }
 
   bool isEmergencyStopped() {
@@ -470,10 +469,12 @@ void printHandler() {
 
 void setup() {
   mcu.enableWiFi();
+  resetPID();
+  robot.startPID();
 }
 
 void loop() {
-  emergencyControl();
+  //emergencyControl();
   printHandler();
   pidControl();
 }
@@ -493,24 +494,34 @@ void pidControl() {
   ef = alpha * e + (1.0 - alpha) * ef;
 
   integralSum += ef * dt;
+  
+  if (fabs(kI) < 1e-12) {
+    if (integralSum >  maxIntegral) integralSum =  maxIntegral;
+    if (integralSum < -maxIntegral) integralSum = -maxIntegral;
+  } else {
+    double maxIsum = (maxIntegral / fabs(kI));
+    if (integralSum >  maxIsum) integralSum =  maxIsum;
+    if (integralSum < -maxIsum) integralSum = -maxIsum;
+  }
 
-  double maxIsum = maxIntegral / max(fabs(kI), 1e-9);
-  integralSum = constrain(integralSum, -maxIsum, maxIsum);
+  double dTerm = 0.0;
+  if (dt > 0.0 && kD != 0.0) {
+    dTerm = kD * (ef - previousError) / dt;
+  }
+  
+  correction = kP * ef;
 
-  correction = kP * ef + kI * integralSum + kD * ((ef - previousError) / dt);
+  int rawLeft  = round(baseSpeed - correction);
+  int rawRight = round(baseSpeed + correction);
 
-  leftSpeed  = constrain(round(baseSpeed - correction), minSpeed, maxSpeed);
-  rightSpeed = constrain(round(baseSpeed + correction), minSpeed, maxSpeed);
+  leftSpeed  = constrain(rawLeft,  minSpeed, maxSpeed);
+  rightSpeed = constrain(rawRight, minSpeed, maxSpeed);
 
   robot.setLeftMotors(leftSpeed);
   robot.setRightMotors(rightSpeed);
 
   previousError = ef;
   lastMillis = now;
-}
-
-void dBangBangControl() {
-  
 }
 
 void resetPID() {

@@ -11,7 +11,7 @@ import java.util.function.Consumer;
 
 public class ParametersPane extends VBox {
 	
-	public PathDisplayPane pathDisplayPane = new PathDisplayPane(new RobotController(() -> {}));
+	public PathDisplayPane pathDisplayPane = new PathDisplayPane(null);
 	RobotController controller = null;
 
     public ParametersPane(PathDisplayPane pathDisplayPane, RobotController controller) {
@@ -25,7 +25,7 @@ public class ParametersPane extends VBox {
                 "Speed Parameter",
                 "Set and validate the robot’s movement speed.",
                 new Parameter[]{
-                        new Parameter("Base Speed (0-255 pwm)", ParameterType.INT, 0, 255, 80, v -> onParameterChanged("/pid/base", v))
+                        new Parameter("Base Speed (0-255 pwm)", ParameterType.INT, 0, 255, 120, v -> onParameterChanged("/pid/base", v))
                 }
         ));
 
@@ -42,9 +42,9 @@ public class ParametersPane extends VBox {
                 "PID Parameters",
                 "Calibrate the PID control coefficients.",
                 new Parameter[]{
-                        new Parameter("Max Speed (0-255 pwm)", ParameterType.INT, 0, 255, 120, v -> onParameterChanged("/pid/speed", v)),
-                        new Parameter("Kp", ParameterType.INT, 0, 500, 100.0, v -> onParameterChanged("/pid/kp", v)),
-                        new Parameter("Ki", ParameterType.DOUBLE, 0.0, 1.0, 0.05, v -> onParameterChanged("/pid/ki", v)),
+                        new Parameter("Max Speed (0-255 pwm)", ParameterType.INT, 0, 255, 200, v -> onParameterChanged("/pid/speed", v)),
+                        new Parameter("Kp", ParameterType.INT, 0, 500, 200.0, v -> onParameterChanged("/pid/kp", v)),
+                        new Parameter("Ki", ParameterType.DOUBLE, 0.0, 1.0, 0.01, v -> onParameterChanged("/pid/ki", v)),
                         new Parameter("Kd", ParameterType.DOUBLE, 0.0, 1.0, 0.0, v -> onParameterChanged("/pid/kd", v))
                 }
         ));
