@@ -35,7 +35,7 @@ bool detectLine() {
 ## Kidnapped A Function
 ```cpp
 void kidnappedB(int steps, int time1, int time2) {
-  int f[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
+  int f[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
   while (1) {
     bool move = circleMovement(steps, time1, time2);
     if (move)
