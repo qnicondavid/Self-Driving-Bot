@@ -99,3 +99,6 @@ bool circleMovement(int steps, int time1, int time2) {
   return 0;
 }
 ```
+To start, the `circleMovment()` function is used to repeat a clockwise pattern of movment until the sensors detect a line. upon doing so, the function will return 1.
+  
+  
