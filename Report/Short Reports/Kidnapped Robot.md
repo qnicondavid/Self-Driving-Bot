@@ -52,7 +52,7 @@ robot.startPID();
   robot.stopPID();
 }
 ```
-This will result in the PID starting up and following the line, seting back to robot onto the track.
+This will result in the PID starting up allowing the robot to start following the line, seting back to robot onto the track.
 
 
 ## Kidnapped A Function
