@@ -55,7 +55,7 @@ robot.startPID();
 This will result in the PID starting up allowing the robot to start following the line, seting back to robot onto the track.
 
 
-## Kidnapped A Function
+## Kidnapped B Function
 ```cpp
 void kidnappedB(int steps, int time1, int time2) {
   int f[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
