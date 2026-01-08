@@ -32,3 +32,47 @@ bool detectLine() {
 }
 }
 ```
+## Kidnapped A Function
+```cpp
+void kidnappedB(int steps, int time1, int time2) {
+  int f[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
+  while (1) {
+    bool move = circleMovement(steps, time1, time2);
+    if (move)
+      break;
+    robot.move(f);
+    delay(20);
+    robot.stopAll();
+    delay(1000);
+    steps = steps + 100;
+    time2 = time2 + 20;
+  }
+  delay(1000);
+  baseSpeed = 120;
+  robot.startPID();
+  unsigned long start = millis();
+  while (1) {
+    pidControl();
+    if (millis() - start > 10000)
+      break;
+  }
+  robot.stopPID();
+}
+
+bool circleMovement(int steps, int time1, int time2) {
+  int cw[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
+  int e[4] = { baseSpeed, -baseSpeed, -baseSpeed, baseSpeed };
+  for (int i = 0; i < steps; i++) {
+    robot.stopAll();
+    if (detectLine()) return 1;
+    robot.move(cw);
+    delay(time1);
+    robot.stopAll();
+    if (detectLine()) return 1;
+    robot.move(e);
+    delay(time2);
+  }
+  robot.stopAll();
+  return 0;
+}
+```
