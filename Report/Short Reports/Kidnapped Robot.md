@@ -32,6 +32,30 @@ bool detectLine() {
 }
 }
 ```
+
+## Function Explanation
+The function starts by indicating the robot to move forward.
+  
+The function `detectLine()` will then come to play, if the robot steps over a line,  
+the function will return either the left sensors output or the rights in the form of a boolean.  
+  
+  
+When this happens, the while loop `while(!detectLine());` will stop repeating, leting the following code run after a delay of 1000:
+```cp
+robot.startPID();
+  unsigned long start = millis();
+  while(1) {
+   pidControl();
+   if(millis() - start > 10000)
+    break; 
+  }
+  robot.stopPID();
+}
+```
+
+
+
+
 ## Kidnapped A Function
 ```cpp
 void kidnappedB(int steps, int time1, int time2) {
