@@ -392,6 +392,109 @@ void parkBox() {
   robot.stopAll();
 }
 
+void threePointTurn() {
+  int steps = 19, time = 70, xDirection = -1, yDirection = 1;
+  int x[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
+  int y[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
+  for (int i = 0; i < 4; i++) {
+    y[i] = y[i] * xDirection;
+    x[i] = x[i] * yDirection;
+  }
+  robot.move(x);
+  delay(1000);
+  for (int i = 0; i < steps; i++) {
+    robot.move(x);
+    delay(time);
+    robot.move(y);
+    delay(time);
+  }
+  xDirection = -1;
+  yDirection = -1;
+  int x1[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
+  int y1[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
+  for (int i = 0; i < 4; i++) {
+    y1[i] = y1[i] * xDirection;
+    x1[i] = x1[i] * yDirection;
+  }
+  for (int i = 0; i < steps; i++) {
+    robot.move(x1);
+    delay(time);
+    robot.move(y1);
+    delay(time);
+  }
+  for (int i = 0; i < 4; i++)
+    x1[i] = x1[i] * -1;
+  robot.move(x1);
+  delay(1000);
+}
+
+void kidnappedA() {
+  robot.stopAll();
+  int fw[4] = {baseSpeed, baseSpeed, baseSpeed, baseSpeed};
+  robot.move(fw);
+  while (!detectLine());
+  robot.stopAll();
+  delay(1000);
+  robot.startPID();
+  unsigned long start = millis();
+  while (1) {
+    pidControl();
+    if (millis() - start > 5000)
+      break;
+  }
+  robot.stopPID();
+  robot.stopAll();
+}
+
+void kidnappedB(int steps, int time1, int time2) {
+  robot.stopAll();
+  int f[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
+  while (1) {
+    bool move = circleMovement(steps, time1, time2);
+    if (move)
+      break;
+    robot.move(f);
+    delay(20);
+    robot.stopAll();
+    delay(500);
+    steps = steps + 50;
+    time2 = time2 + 20;
+  }
+  delay(500);
+  robot.startPID();
+  unsigned long start = millis();
+  while (1) {
+    pidControl();
+    if (millis() - start > 5000)
+      break;
+  }
+  robot.stopPID();
+  robot.stopAll();
+}
+
+bool circleMovement(int steps, int time1, int time2) {
+  int cw[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
+  int e[4] = { baseSpeed, -baseSpeed, -baseSpeed, baseSpeed };
+  for (int i = 0; i < steps; i++) {
+    robot.stopAll();
+    if (detectLine()) return 1;
+    robot.move(cw);
+    delay(time1);
+    robot.stopAll();
+    if (detectLine()) return 1;
+    robot.move(e);
+    delay(time2);
+  }
+  robot.stopAll();
+  return 0;
+}
+
+bool detectLine() {
+  int L = irLeft.readDigital();
+  int R = irRight.readDigital();
+  return L || R;
+}
+
 class RequestHandler {
 private:
   Robot &robot;
@@ -495,6 +598,22 @@ public:
       parkBox();
     }
 
+    if (request.indexOf("GET /kidnap/a") >= 0) {
+      kidnappedA();
+    }
+
+    if (request.indexOf("GET /kidnap/b") >= 0) {
+      kidnappedB(200, 20, 0);
+    }
+
+    if (request.indexOf("GET /maze/on") >= 0) {
+      startMaze();
+    }
+
+    if (request.indexOf("GET /maze/off") >= 0) {
+      stopMaze();
+    }
+
     int valueIndex = request.indexOf("value=");
     int value = 0;
     if (valueIndex >= 0) {
@@ -540,16 +659,6 @@ WiFiClient streamClient;
 WiFiClient controlClient;
 unsigned long lastSend = 0;
 
-void setup() {
-  mcu.enableWiFi();
-}
-
-void loop() {
-  emergencyControl();
-  printHandler();
-  pidControl();
-}
-
 void printHandler() {
   if (!streamClient || !streamClient.connected()) {
     WiFiClient newClient = mcu.getServer().available();
@@ -573,78 +682,37 @@ void printHandler() {
   }
 }
 
-void kidnappedB(int steps, int time1, int time2) {
-  int f[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
-  while (1) {
-    bool move = circleMovement(steps, time1, time2);
-    if (move)
-      break;
-    robot.move(f);
-    delay(20);
-    robot.stopAll();
-    delay(1000);
-    steps = steps + 100;
-    time2 = time2 + 20;
-  }
-  delay(1000);
-  baseSpeed = 120;
-  robot.startPID();
-  unsigned long start = millis();
-  while (1) {
-    pidControl();
-    if (millis() - start > 10000)
-      break;
-  }
-  robot.stopPID();
-}
+void emergencyControl() {
+  int dist = robot.getDistance();
 
-bool circleMovement(int steps, int time1, int time2) {
-  int cw[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
-  int e[4] = { baseSpeed, -baseSpeed, -baseSpeed, baseSpeed };
-  for (int i = 0; i < steps; i++) {
-    robot.stopAll();
-    if (detectLine()) return 1;
-    robot.move(cw);
-    delay(time1);
-    robot.stopAll();
-    if (detectLine()) return 1;
-    robot.move(e);
-    delay(time2);
+  if (!robot.isEmergencyStopped() && dist <= dStop) {
+    robot.engageEmergencyStop();
   }
-  robot.stopAll();
-  return 0;
-}
 
-
-void kidnappedA() {
-  int fw[4];
-  for (int i = 0; i < 4; i++)
-    fw[i] = baseSpeed;
-  robot.move(fw);
-  while (!detectLine())
-    ;
-  robot.stopAll();
-  delay(1000);
-  robot.startPID();
-  unsigned long start = millis();
-  while (1) {
-    pidControl();
-    if (millis() - start > 10000)
-      break;
+  if (robot.isEmergencyStopped() && dist >= (dStop + deltaD)) {
+    robot.releaseEmergencyStop();
   }
-  robot.stopPID();
-}
-
-bool detectLine() {
-  int L = irLeft.readDigital();
-  int R = irRight.readDigital();
-  return L || R;
 }
 
 void startMaze() {
-  dStop = 30;
   inMazeSolving = true;
   robot.startPID();
+}
+
+void stopMaze() {
+  inMazeSolving = false;
+  robot.stopPID();
+}
+
+void setup() {
+  mcu.enableWiFi();
+}
+
+void loop() {
+  emergencyControl();
+  printHandler();
+  pidControl();
+  mazeSolving();
 }
 
 void mazeSolving() {
@@ -745,86 +813,4 @@ void resetPID() {
   leftSpeed = 0;
   rightSpeed = 0;
   correction = 0.0;
-}
-
-void emergencyControl() {
-  int dist = robot.getDistance();
-
-  if (!robot.isEmergencyStopped() && dist <= dStop) {
-    robot.engageEmergencyStop();
-  }
-
-  if (robot.isEmergencyStopped() && dist >= (dStop + deltaD)) {
-    robot.releaseEmergencyStop();
-  }
-}
-
-void threePointTurn() {
-  int steps = 19, time = 70, xDirection = -1, yDirection = 1;
-  int x[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
-  int y[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
-  for (int i = 0; i < 4; i++) {
-    y[i] = y[i] * xDirection;
-    x[i] = x[i] * yDirection;
-  }
-  robot.move(x);
-  delay(1000);
-  for (int i = 0; i < steps; i++) {
-    robot.move(x);
-    delay(time);
-    robot.move(y);
-    delay(time);
-  }
-  xDirection = -1;
-  yDirection = -1;
-  int x1[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
-  int y1[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
-  for (int i = 0; i < 4; i++) {
-    y1[i] = y1[i] * xDirection;
-    x1[i] = x1[i] * yDirection;
-  }
-  for (int i = 0; i < steps; i++) {
-    robot.move(x1);
-    delay(time);
-    robot.move(y1);
-    delay(time);
-  }
-  for (int i = 0; i < 4; i++)
-    x1[i] = x1[i] * -1;
-  robot.move(x1);
-  delay(1000);
-}
-
-void park() {
-  int steps = 10, time = 70, xDirection = -1, yDirection = 1;
-  int x[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
-  int y[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
-  for (int i = 0; i < 4; i++) {
-    y[i] = y[i] * xDirection;
-    x[i] = x[i] * yDirection;
-  }
-  for (int i = 0; i < steps; i++) {
-    robot.move(x);
-    delay(time);
-    robot.move(y);
-    delay(time);
-  }
-  steps = 26;
-  xDirection = -1;
-  yDirection = 1;
-  for (int i = 0; i < 4; i++) {
-    y[i] = y[i] * xDirection;
-    x[i] = x[i] * yDirection;
-  }
-  for (int i = 0; i < steps; i++) {
-    robot.move(x);
-    delay(time);
-    robot.move(y);
-    delay(time);
-  }
-  for (int i = 0; i < 4; i++)
-    x[i] = baseSpeed;
-  robot.move(x);
-  delay(500);
-  robot.stopAll();
 }

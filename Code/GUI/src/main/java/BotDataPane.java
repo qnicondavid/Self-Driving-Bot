@@ -69,7 +69,7 @@ public class BotDataPane extends VBox {
 		AnimationTimer timer = new AnimationTimer() {
             @Override
             public void handle(long now) {
-                controlLabel.setText(controller.pidText() + "\n" + controller.reverseText());
+                controlLabel.setText(controller.pidText() + "\n" + controller.reverseText() + "\n" + controller.mazeText());
             }
         };
         timer.start();

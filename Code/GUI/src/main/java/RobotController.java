@@ -11,6 +11,7 @@ public class RobotController {
 
     private boolean pidEnabled = false;
     private boolean reverseEnabled = false;
+	private boolean mazeEnabled = false;
 
     private final Set<KeyCode> pressedKeys = new HashSet<>();
 
@@ -31,6 +32,21 @@ public class RobotController {
 
         if (code == KeyCode.R) {
             toggleReverse();
+            return;
+        }
+		
+		if (code == KeyCode.T) {
+            toggleMaze();
+            return;
+        }
+		
+		if (code == KeyCode.N) {
+            sendRequestAsync("/kidnap/a");
+            return;
+        }
+		
+		if (code == KeyCode.M) {
+            sendRequestAsync("/kidnap/b");
             return;
         }
 		
@@ -69,30 +85,63 @@ public class RobotController {
     public String reverseText() {
         return "Reverse: " + (reverseEnabled ? "ON" : "OFF");
     }
+	
+	public String mazeText() {
+        return "Maze: " + (mazeEnabled ? "ON" : "OFF");
+    }
 		
-    private void togglePID() {
-        pidEnabled = !pidEnabled;
+	private void togglePID() {
+		pidEnabled = !pidEnabled;
 
-        if (pidEnabled && reverseEnabled) {
-            reverseEnabled = false;
-            sendRequestAsync("/move/stop");
-        }
+		if (pidEnabled) {
+			if (reverseEnabled) {
+				reverseEnabled = false;
+				sendRequestAsync("/move/stop");
+			}
+			if (mazeEnabled) {
+				mazeEnabled = false;
+				sendRequestAsync("/maze/off");
+			}
+		}
 
-        sendRequestAsync(pidEnabled ? "/pid/on" : "/pid/off");
-        clearMovementKeys();
-    }
+		sendRequestAsync(pidEnabled ? "/pid/on" : "/pid/off");
+		clearMovementKeys();
+	}
 
-    private void toggleReverse() {
-        reverseEnabled = !reverseEnabled;
+	private void toggleReverse() {
+		reverseEnabled = !reverseEnabled;
 
-        if (reverseEnabled && pidEnabled) {
-            pidEnabled = false;
-            sendRequestAsync("/pid/off");
-        }
+		if (reverseEnabled) {
+			if (pidEnabled) {
+				pidEnabled = false;
+				sendRequestAsync("/pid/off");
+			}
+			if (mazeEnabled) {
+				mazeEnabled = false;
+				sendRequestAsync("/maze/off");
+			}
+		}
 
-        sendRequestAsync(reverseEnabled ? "/move/south" : "/move/stop");
-        clearMovementKeys();
-    }
+		sendRequestAsync(reverseEnabled ? "/move/south" : "/move/stop");
+		clearMovementKeys();
+	}
+	
+	private void toggleMaze() {
+		mazeEnabled = !mazeEnabled;
+
+		if (mazeEnabled) {
+			if (pidEnabled) {
+				pidEnabled = false;
+				sendRequestAsync("/pid/off");
+			}
+			if (reverseEnabled) {
+				reverseEnabled = false;
+				sendRequestAsync("/move/stop");
+			}
+		}
+		sendRequestAsync(mazeEnabled ? "/maze/on" : "/maze/off");
+		clearMovementKeys();
+	}
 
     private void updateMovement() {
         if (reverseEnabled) return;

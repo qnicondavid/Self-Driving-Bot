@@ -51,6 +51,7 @@ public class CommandsPane extends VBox {
 			"Maze Solving",
 			"Press the respective key to activate or deactivate the algorithm.",
 			new String[][]{
+				{"Tremaux", "T"}
 			}
 		));
 		
@@ -58,6 +59,8 @@ public class CommandsPane extends VBox {
 			"Kidnapped Robot Problem",
 			"Press the respective key to activate or deactivate the algorithm.",
 			new String[][]{
+				{"Algorithm A", "N"},
+				{"Algorithm B", "M"}
 			}
 		));
 		
