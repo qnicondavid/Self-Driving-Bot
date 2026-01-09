@@ -29,9 +29,11 @@ public class CommandsPane extends VBox {
 		
 		getChildren().add(createSection(
 			"Special Manoeuvres",
-			"Press the respective key to activate or deactivate the manoeuvre.",
+			"Press the respective key to activate/deactivate or perform the manoeuvre.",
 			new String[][]{
-					{"Reverse in a Straight Line​", "R"}
+					{"Toggled Reverse in a Straight Line​", "R"},
+					{"Timed Reverse in a Straight Line​", "1"},
+					{"Stepped Turn", "2"},
 			}
 		));
 		

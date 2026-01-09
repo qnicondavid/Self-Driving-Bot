@@ -33,7 +33,17 @@ public class RobotController {
             toggleReverse();
             return;
         }
-
+		
+		if (code == KeyCode.DIGIT1) {
+            sendRequestAsync("/reverse/perform");
+            return;
+        }
+		
+		if (code == KeyCode.DIGIT2) {
+            sendRequestAsync("/turn/perform");
+            return;
+        }
+		
         if (!pidEnabled) updateMovement();
     }
 
@@ -49,7 +59,7 @@ public class RobotController {
     public String reverseText() {
         return "Reverse: " + (reverseEnabled ? "ON" : "OFF");
     }
-
+		
     private void togglePID() {
         pidEnabled = !pidEnabled;
 

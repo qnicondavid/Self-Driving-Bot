@@ -1,6 +1,36 @@
 #include <SPI.h>
 #include <WiFi101.h>
 
+int baseSpeed = 120;
+int minSpeed = -200;
+int maxSpeed = 200;
+int leftSpeed = 0;
+int rightSpeed = 0;
+
+unsigned long lastMillis = 0;
+
+double e = 0.0;
+double ef = 0.0;
+double integralSum = 0.0;
+double previousError = 0.0;
+double alpha = 0.3;
+double kP = 200;
+double kI = 0;
+double kD = 0;
+double correction = 0.0;
+double maxIntegral = 200.0;
+
+int dStop = 1;
+int deltaD = 1;
+
+int timeReverse = 0;
+
+int lastCheck, checkInterval;
+bool inMazeSolving;
+
+int turnSteps = 37;
+int turnTimeForwardStart = 1000, turnTimeForwardCorner = 70, turnTimeRotationCorner = 70;
+int turnXDirection = 1, turnYDirection = 1;
 
 class Microcontroller {
 private:
@@ -148,28 +178,6 @@ public:
 
 void resetPID();
 
-unsigned long lastMillis = 0;
-double e = 0.0;
-double ef = 0.0;
-double integralSum = 0.0;
-double previousError = 0.0;
-
-int baseSpeed = 120;
-int minSpeed = -200;
-int maxSpeed = 200;
-int leftSpeed = 0;
-int rightSpeed = 0;
-
-double alpha = 0.3;
-double kP = 200;
-double kI = 0;
-double kD = 0;
-double correction = 0.0;
-double maxIntegral = 200.0;
-
-int dStop = 1;
-int deltaD = 1;
-
 class Robot {
 private:
   IrSensor &irLeft, &irRight;
@@ -281,6 +289,7 @@ public:
   int getLeftIR() {
     return irLeft.readAnalog();
   }
+
   int getRightIR() {
     return irRight.readAnalog();
   }
@@ -308,9 +317,51 @@ public:
   }
 };
 
+Microcontroller mcu(8, 7, 4, 2, "Group 19", "ShutDown1");
+
+IrSensor irLeft(A1, A0);
+IrSensor irRight(A3, A2);
+
+UrSensor ur(0, 1);
+
+Motor FL(6, 5, false);
+Motor FR(11, 12, true);
+Motor BL(A4, A5, false);
+Motor BR(9, 10, true);
+
+Robot robot(irLeft, irRight, ur, FL, FR, BL, BR, mcu);
 class RequestHandler {
 private:
   Robot &robot;
+
+void timedReverse() {
+  robot.stopAll();
+  int s[4] = { -baseSpeed, -baseSpeed, -baseSpeed, -baseSpeed };
+  robot.move(s);
+  delay(timeReverse);
+  robot.stopAll();
+}
+
+void Turn() {
+  robot.stopAll();
+  int x[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
+  int y[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
+  for (int i = 0; i < 4; i++) {
+    x[i] = x[i] * turnXDirection;
+    y[i] = y[i] * turnYDirection;
+  }
+  robot.move(x);
+  delay(turnTimeForwardStart);
+  for (int i = 0; i < turnSteps; i++) {
+    robot.move(x);
+    delay(turnTimeForwardCorner);
+    robot.move(y);
+    delay(turnTimeRotationCorner);
+  }
+  robot.move(x);
+  delay(turnTimeForwardStart);
+  robot.stopAll();
+}
 
 public:
   RequestHandler(Robot &r)
@@ -395,6 +446,13 @@ public:
       robot.stopPID();
     }
 
+    if (request.indexOf("GET /reverse/perform") >= 0) {
+      timedReverse();
+    }
+
+    if (request.indexOf("GET /turn/perform") >= 0) {
+      Turn();
+    }
 
     int valueIndex = request.indexOf("value=");
     int value = 0;
@@ -417,34 +475,39 @@ public:
     if (request.indexOf("GET /emergency/stop") >= 0) dStop = value;
     if (request.indexOf("GET /emergency/delta") >= 0) deltaD = value;
 
+    if (request.indexOf("GET /reverse/time") >= 0) timeReverse = value;
+
+    if (request.indexOf("GET /turn/turnSteps") >= 0) turnSteps = value;
+    if (request.indexOf("GET /turn/turnXDirection") >= 0) turnXDirection = value;
+    if (request.indexOf("GET /turn/turnYDirection") >= 0) turnYDirection = value;
+    if (request.indexOf("GET /turn/turnTimeForwardStart") >= 0) turnTimeForwardStart = value;
+    if (request.indexOf("GET /turn/turnTimeForwardCorner") >= 0) turnTimeForwardCorner = value;
+    if (request.indexOf("GET /turn/turnTimeRotationCorner") >= 0) turnTimeRotationCorner = value;
+
     client.println("HTTP/1.1 200 OK");
     client.println("Content-Type: text/plain");
     client.println("Connection: close");
     client.println();
-    client.println("PID State:");
-    client.println(robot.isInPID() ? "ON" : "OFF");
   }
 };
-
-Microcontroller mcu(8, 7, 4, 2, "Group 19", "ShutDown1");
-
-IrSensor irLeft(A1, A0);
-IrSensor irRight(A3, A2);
-
-UrSensor ur(0, 1);
-
-Motor FL(6, 5, false);
-Motor FR(11, 12, true);
-Motor BL(A4, A5, false);
-Motor BR(9, 10, true);
-
-Robot robot(irLeft, irRight, ur, FL, FR, BL, BR, mcu);
 
 RequestHandler requestHandler(robot);
 
 WiFiClient streamClient;
 WiFiClient controlClient;
 unsigned long lastSend = 0;
+
+void setup() {
+  mcu.enableWiFi();
+}
+
+void loop() {
+  emergencyControl();
+  printHandler();
+  pidControl();
+  //mazeSolving();
+  //emergencyPID();
+}
 
 void printHandler() {
   if (!streamClient || !streamClient.connected()) {
@@ -457,7 +520,7 @@ void printHandler() {
     if (newClient) controlClient = newClient;
   }
 
-  if (streamClient && streamClient.connected() && millis() - lastSend >= 0) {
+  if (streamClient && streamClient.connected() && millis() - lastSend >= 200) {
     robot.printInformation(streamClient);
     streamClient.println("----------------------");
     streamClient.flush();
@@ -469,45 +532,6 @@ void printHandler() {
   }
 }
 
-int lastCheck, checkInterval;
-bool inMazeSolving;
-void setup() {
-  mcu.enableWiFi();
-  //U Turn
-  //Turn(37, 70, -1, 1);
-  //Turn(37, 70, -1, -1);
-
-  //
-  // Turn(23, 70, -1, 1);
-  // Turn(23, 70, -1, 1);
-  //threePointTurn();
-
-  //kidnappedA();
-
-  startMaze();
-  //baseSpeed = 200;
-  //kidnappedB(200, 20, 0);
-
-  //startMaze();
-
-  //timedReverse(3000);
-  
-  lastCheck = millis();
-  checkInterval = 200;
-  dStop = 20;
-  deltaD = 10;
-  //robot.startPID();
-
-}
-
-void loop() {
-  //emergencyControl();
-  //printHandler();
-  //pidControl();
-  mazeSolving();
-  //emergencyPID();
-}
-
 void emergencyPID() {
   unsigned long now = millis();
   if (now - lastCheck > checkInterval) {
@@ -515,20 +539,13 @@ void emergencyPID() {
     robot.stopPID();
     if (robot.getDistance() < dStop) {
       robot.stopPID();
-      while(1)
-        if(robot.getDistance() > dStop + deltaD)
-            break;
+      while (1)
+        if (robot.getDistance() > dStop + deltaD)
+          break;
     }
     robot.startPID();
   }
   pidControl();
-}
-
-void timedReverse(int time) {
-  int s[4] = { -baseSpeed, -baseSpeed, -baseSpeed, -baseSpeed };
-  robot.move(s);
-  delay(time);
-  robot.stopAll();
 }
 
 void kidnappedB(int steps, int time1, int time2) {
@@ -715,25 +732,6 @@ void emergencyControl() {
   if (robot.isEmergencyStopped() && dist >= (dStop + deltaD)) {
     robot.releaseEmergencyStop();
   }
-}
-
-void Turn(int steps, int time, int xDirection, int yDirection) {
-  int x[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
-  int y[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
-  for (int i = 0; i < 4; i++) {
-    y[i] = y[i] * xDirection;
-    x[i] = x[i] * yDirection;
-  }
-  robot.move(x);
-  delay(1000);
-  for (int i = 0; i < steps; i++) {
-    robot.move(x);
-    delay(time);
-    robot.move(y);
-    delay(time);
-  }
-  robot.move(x);
-  delay(1000);
 }
 
 void threePointTurn() {

@@ -28,6 +28,27 @@ public class ParametersPane extends VBox {
                         new Parameter("Base Speed (0-255 pwm)", ParameterType.INT, 0, 255, 120, v -> onParameterChanged("/pid/base", v))
                 }
         ));
+		
+		getChildren().add(createSection(
+                "Timed Reverse Parameter",
+                "Set the duration of the timed reverse manoeuvre.",
+                new Parameter[]{
+                        new Parameter("Duration (ms)", ParameterType.INT, 0, 100000, 0, v -> onParameterChanged("/reverse/time", v))
+                }
+        ));
+		
+		getChildren().add(createSection(
+                "Stepped Turn Parameters",
+                "Set the behaviour for the stepped turn.",
+                new Parameter[]{
+						new Parameter("Number of steps", ParameterType.INT, 0, 100000, 37, v -> onParameterChanged("/turn/turnSteps", v)),
+						new Parameter("X Direction (1 = fw, -1 = bw)", ParameterType.INT, -1, 1, 1, v -> onParameterChanged("/turn/turnXDirection", v)),
+						new Parameter("Y Direction (1 = cw, -1 = ccw)", ParameterType.INT, -1, 1, 1, v -> onParameterChanged("/turn/turnYDirection", v)),
+                        new Parameter("Movement Duration at Start and End (ms)", ParameterType.INT, 0, 100000, 1000, v -> onParameterChanged("/turn/turnTimeForwardStart", v)),
+						new Parameter("X Movement Duration in a Step (ms)", ParameterType.INT, 0, 1000, 70, v -> onParameterChanged("/turn/turnTimeForwardCorner", v)),
+						new Parameter("Y Duration in a Step (ms)", ParameterType.INT, 0, 1000, 70, v -> onParameterChanged("/turn/turnTimeRotationCorner", v))
+                }
+        ));
 
         getChildren().add(createSection(
                 "Emergency Stop Parameters",
@@ -48,7 +69,7 @@ public class ParametersPane extends VBox {
                         new Parameter("Kd", ParameterType.DOUBLE, 0.0, 1.0, 0.0, v -> onParameterChanged("/pid/kd", v))
                 }
         ));
-		
+				
 		getChildren().add(createSection(
                 "Bang-Bang Parameters",
                 "Tune the Bang-Bang control variables.",
