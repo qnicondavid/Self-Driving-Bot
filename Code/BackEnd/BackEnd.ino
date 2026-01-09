@@ -32,6 +32,8 @@ int turnSteps = 37;
 int turnTimeForwardStart = 1000, turnTimeForwardCorner = 70, turnTimeRotationCorner = 70;
 int turnXDirection = 1, turnYDirection = 1;
 
+int parkTime;
+
 class Microcontroller {
 private:
   int csPin;
@@ -378,6 +380,18 @@ void emergencyPID() {
   }
 }
 
+void parkBox() {
+  robot.stopAll();
+  robot.startPID();
+  while(!inJunction())
+    pidControl();
+  robot.stopPID();
+  int x[4] = {baseSpeed, baseSpeed, baseSpeed, baseSpeed};
+  robot.move(x);
+  delay(parkTime);
+  robot.stopAll();
+}
+
 class RequestHandler {
 private:
   Robot &robot;
@@ -477,6 +491,10 @@ public:
       emergencyPID();
     }
 
+    if (request.indexOf("GET /park/perform") >= 0) {
+      parkBox();
+    }
+
     int valueIndex = request.indexOf("value=");
     int value = 0;
     if (valueIndex >= 0) {
@@ -507,6 +525,8 @@ public:
     if (request.indexOf("GET /turn/turnTimeForwardCorner") >= 0) turnTimeForwardCorner = value;
     if (request.indexOf("GET /turn/turnTimeRotationCorner") >= 0) turnTimeRotationCorner = value;
 
+    if (request.indexOf("GET /park/time") >= 0) parkTime = value;
+
     client.println("HTTP/1.1 200 OK");
     client.println("Content-Type: text/plain");
     client.println("Connection: close");
@@ -528,8 +548,6 @@ void loop() {
   emergencyControl();
   printHandler();
   pidControl();
-  //mazeSolving();
-  //emergencyPID();
 }
 
 void printHandler() {

@@ -49,6 +49,11 @@ public class RobotController {
             return;
         }
 		
+		if (code == KeyCode.DIGIT4) {
+            sendRequestAsync("/park/perform");
+            return;
+        }
+		
         if (!pidEnabled) updateMovement();
     }
 
