@@ -44,6 +44,11 @@ public class RobotController {
             return;
         }
 		
+		if (code == KeyCode.DIGIT3) {
+            sendRequestAsync("/emergency/pid");
+            return;
+        }
+		
         if (!pidEnabled) updateMovement();
     }
 

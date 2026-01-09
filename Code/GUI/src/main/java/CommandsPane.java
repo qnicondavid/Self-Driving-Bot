@@ -34,6 +34,7 @@ public class CommandsPane extends VBox {
 					{"Toggled Reverse in a Straight Line​", "R"},
 					{"Timed Reverse in a Straight Line​", "1"},
 					{"Stepped Turn", "2"},
+					{"Emergency PID (Stops at the first obstacle detected)", "3"}
 			}
 		));
 		
@@ -41,9 +42,7 @@ public class CommandsPane extends VBox {
 			"Line Following",
 			"Press the respective key to activate or deactivate the algorithm.",
 			new String[][]{
-					{"PID", "P"},
-					{"Digital Bang-Bang", "N"},
-					{"Analog Bang-Bang", "M"},
+					{"PID", "P"}
 			}
 		));
 		

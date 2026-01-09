@@ -25,7 +25,7 @@ int deltaD = 1;
 
 int timeReverse = 0;
 
-int lastCheck, checkInterval;
+int lastCheck, checkInterval = 200;
 bool inMazeSolving;
 
 int turnSteps = 37;
@@ -330,9 +330,6 @@ Motor BL(A4, A5, false);
 Motor BR(9, 10, true);
 
 Robot robot(irLeft, irRight, ur, FL, FR, BL, BR, mcu);
-class RequestHandler {
-private:
-  Robot &robot;
 
 void timedReverse() {
   robot.stopAll();
@@ -362,6 +359,28 @@ void Turn() {
   delay(turnTimeForwardStart);
   robot.stopAll();
 }
+
+void emergencyPID() {
+  robot.stopAll();
+  robot.startPID();
+  lastCheck = millis();
+  while(1) {
+    unsigned long now = millis();
+    if (now - lastCheck > checkInterval) {
+      lastCheck = now;
+      robot.stopPID();
+      if (robot.getDistance() < dStop) {
+        break;
+      }
+      robot.startPID();
+    }
+    pidControl();
+  }
+}
+
+class RequestHandler {
+private:
+  Robot &robot;
 
 public:
   RequestHandler(Robot &r)
@@ -454,6 +473,10 @@ public:
       Turn();
     }
 
+    if (request.indexOf("GET /emergency/pid") >= 0) {
+      emergencyPID();
+    }
+
     int valueIndex = request.indexOf("value=");
     int value = 0;
     if (valueIndex >= 0) {
@@ -530,22 +553,6 @@ void printHandler() {
   if (controlClient && controlClient.connected() && controlClient.available()) {
     requestHandler.handle(controlClient);
   }
-}
-
-void emergencyPID() {
-  unsigned long now = millis();
-  if (now - lastCheck > checkInterval) {
-    lastCheck = now;
-    robot.stopPID();
-    if (robot.getDistance() < dStop) {
-      robot.stopPID();
-      while (1)
-        if (robot.getDistance() > dStop + deltaD)
-          break;
-    }
-    robot.startPID();
-  }
-  pidControl();
 }
 
 void kidnappedB(int steps, int time1, int time2) {
