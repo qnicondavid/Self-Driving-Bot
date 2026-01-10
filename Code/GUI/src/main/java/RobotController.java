@@ -70,6 +70,11 @@ public class RobotController {
             return;
         }
 		
+		if (code == KeyCode.DIGIT5) {
+            sendRequestAsync("/threeturn/perform");
+            return;
+        }
+		
         if (!pidEnabled) updateMovement();
     }
 

@@ -35,7 +35,8 @@ public class CommandsPane extends VBox {
 					{"Timed Reverse in a Straight Line​", "1"},
 					{"Stepped Turn", "2"},
 					{"Emergency PID (Stops at the first obstacle detected)", "3"},
-					{"Park in a Box Forward", "4"}
+					{"Park in a Box Forward", "4"},
+					{"Three Point Turn", "5"}
 			}
 		));
 		

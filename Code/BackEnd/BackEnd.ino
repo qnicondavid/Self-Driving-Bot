@@ -393,39 +393,42 @@ void parkBox() {
 }
 
 void threePointTurn() {
-  int steps = 19, time = 70, xDirection = -1, yDirection = 1;
+  robot.stopAll();
   int x[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
   int y[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
   for (int i = 0; i < 4; i++) {
-    y[i] = y[i] * xDirection;
-    x[i] = x[i] * yDirection;
+    y[i] = y[i] * -1;
   }
-  robot.move(x);
-  delay(1000);
-  for (int i = 0; i < steps; i++) {
+  for (int i = 0; i < turnSteps; i++) {
     robot.move(x);
-    delay(time);
+    delay(turnTimeForwardCorner);
     robot.move(y);
-    delay(time);
+    delay(turnTimeRotationCorner);
   }
-  xDirection = -1;
-  yDirection = -1;
-  int x1[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
-  int y1[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
+  robot.stopAll();
+
   for (int i = 0; i < 4; i++) {
-    y1[i] = y1[i] * xDirection;
-    x1[i] = x1[i] * yDirection;
+    x[i] = x[i] * -1;
   }
-  for (int i = 0; i < steps; i++) {
-    robot.move(x1);
-    delay(time);
-    robot.move(y1);
-    delay(time);
+  for (int i = 0; i < turnSteps; i++) {
+    robot.move(x);
+    delay(turnTimeForwardCorner);
+    robot.move(y);
+    delay(turnTimeRotationCorner);
   }
-  for (int i = 0; i < 4; i++)
-    x1[i] = x1[i] * -1;
-  robot.move(x1);
-  delay(1000);
+  robot.stopAll();
+
+  for (int i = 0; i < 4; i++) {
+    x[i] = x[i] * -1;
+  }
+  for (int i = 0; i < turnSteps; i++) {
+    robot.move(x);
+    delay(turnTimeForwardCorner);
+    robot.move(y);
+    delay(turnTimeRotationCorner);
+  }
+  robot.stopAll();
+
 }
 
 void kidnappedA() {
@@ -588,6 +591,10 @@ public:
 
     if (request.indexOf("GET /turn/perform") >= 0) {
       Turn();
+    }
+
+    if (request.indexOf("GET /threeturn/perform") >= 0) {
+      threePointTurn();
     }
 
     if (request.indexOf("GET /emergency/pid") >= 0) {
