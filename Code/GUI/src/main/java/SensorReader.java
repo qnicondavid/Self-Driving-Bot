@@ -4,6 +4,12 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.Socket;
 
+	/**
+	* Reads sensor data from the robot over a TCP socket and updates the UI.
+	* Handles IR sensors (analog and digital), ultrasonic distance, motor PWM values,
+	* and emergency stop status. Continuously maintains a connection and updates
+	* JavaFX UI components on the Application Thread.
+	*/
 public class SensorReader implements Runnable {
 
     private static final String IP = "192.168.4.1";
@@ -19,12 +25,22 @@ public class SensorReader implements Runnable {
 	private String irRightAnalog = "--";
 	private String irRightDigital = "--";
 
-
+	/**
+     * Creates a SensorReader that updates the given UI components.
+     *
+     * @param botData the pane showing the robot's sensor data
+     * @param pathDisplay the pane showing the robot's path and motor data
+     */
     public SensorReader(BotDataPane botData, PathDisplayPane pathDisplay) {
         this.botData = botData;
         this.pathDisplay = pathDisplay;
     }
-
+	
+	/**
+     * Connects to the robot and continuously reads sensor data.
+     * Updates the UI asynchronously. If the connection fails,
+     * waits 1 second before trying again.
+     */
     @Override
     public void run() {
         while (true) {
@@ -57,12 +73,23 @@ public class SensorReader implements Runnable {
         }
     }
 
+
+    /**
+     * Processes a line of sensor data and updates the UI if necessary.
+     *
+     * @param line the line received from the robot
+     */
     private void handleLine(String line) {
         if (line.isEmpty() || line.startsWith("-")) return;
 
         Platform.runLater(() -> updateUI(line));
     }
-
+	
+	/**
+     * Updates UI components based on the sensor data line.
+     *
+     * @param line the sensor data line
+     */
     private void updateUI(String line) {
 
 		if (line.startsWith("IR Left (Analog):")) {
@@ -106,7 +133,13 @@ public class SensorReader implements Runnable {
 		}
 	}
 
-
+	
+	/**
+     * Parses an integer value from a line of the form "Label: value".
+     *
+     * @param line the line containing the value
+     * @return the parsed integer
+     */
     private int parseValue(String line) {
         return Integer.parseInt(line.split(":")[1].trim());
     }

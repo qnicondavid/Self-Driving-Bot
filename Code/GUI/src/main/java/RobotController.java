@@ -7,24 +7,50 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
 
-public class RobotController {
 
+/**
+ * RobotController handles keyboard input to control the robot.
+ * It supports toggling PID, reverse, and maze modes, as well as
+ * sending movement and action commands to the robot via HTTP requests.
+ * Key states are tracked to allow simultaneous key presses.
+ */
+public class RobotController {
+	
+	// Flags for the current robot state
     private boolean pidEnabled = false;
     private boolean reverseEnabled = false;
 	private boolean mazeEnabled = false;
-
+	
+	// Set of currently pressed keys to handle multiple simultaneous inputs
     private final Set<KeyCode> pressedKeys = new HashSet<>();
-
+	
+	// Runnable callback to notify UI or other components when state changes
     private final Runnable onStateChanged;
-
+	
+	
+	/**
+     * Creates a RobotController with a callback for state changes.
+     *
+     * @param onStateChanged called when robot state changes (optional)
+     */
     public RobotController(Runnable onStateChanged) {
         this.onStateChanged = onStateChanged;
     }
-
+	
+	
+	/**
+     * Handles a key press event.
+     * Toggles modes (PID, reverse, maze) and sends movement or action commands.
+     *
+     * @param event the key press event
+     */
     public void handleKeyPressed(KeyEvent event) {
         KeyCode code = event.getCode();
+		
+		// Ignore if key was already pressed
         if (!pressedKeys.add(code)) return;
-
+		
+		// Mode toggles
         if (code == KeyCode.P) {
             togglePID();
             return;
@@ -45,6 +71,7 @@ public class RobotController {
             return;
         }
 		
+		// Specific action endpoints
 		if (code == KeyCode.N) {
             sendRequestAsync("/kidnap/a");
             return;
@@ -80,26 +107,55 @@ public class RobotController {
             return;
         }
 		
+		// If PID mode is off, update movement based on pressed keys
         if (!pidEnabled) updateMovement();
     }
 
+
+    /**
+     * Handles a key release event.
+     * Removes the key from the pressed set and updates movement if needed.
+     *
+     * @param event the key release event
+     */
     public void handleKeyReleased(KeyEvent event) {
         pressedKeys.remove(event.getCode());
         if (!pidEnabled) updateMovement();
     }
-
+	
+	
+	/**
+     * Returns a human-readable PID status string.
+     *
+     * @return "PID: ON" or "PID: OFF"
+     */
     public String pidText() {
         return "PID: " + (pidEnabled ? "ON" : "OFF");
     }
-
+	
+	/**
+     * Returns a human-readable reverse status string.
+     *
+     * @return "Reverse: ON" or "Reverse: OFF"
+     */
     public String reverseText() {
         return "Reverse: " + (reverseEnabled ? "ON" : "OFF");
     }
 	
+	/**
+     * Returns a human-readable maze mode status string.
+     *
+     * @return "Maze: ON" or "Maze: OFF"
+     */
 	public String mazeText() {
         return "Maze: " + (mazeEnabled ? "ON" : "OFF");
     }
-		
+	
+	/**
+     * Toggles PID mode.
+     * If enabled, disables reverse and maze modes.
+     * Sends corresponding HTTP requests to the robot.
+     */
 	private void togglePID() {
 		pidEnabled = !pidEnabled;
 
@@ -117,7 +173,13 @@ public class RobotController {
 		sendRequestAsync(pidEnabled ? "/pid/on" : "/pid/off");
 		clearMovementKeys();
 	}
-
+	
+	
+	/**
+     * Toggles reverse mode.
+     * If enabled, disables PID and maze modes.
+     * Sends corresponding HTTP requests to the robot.
+     */
 	private void toggleReverse() {
 		reverseEnabled = !reverseEnabled;
 
@@ -136,6 +198,11 @@ public class RobotController {
 		clearMovementKeys();
 	}
 	
+	/**
+     * Toggles maze mode.
+     * Accepts a path to determine which maze behavior to enable.
+     * Disables PID and reverse modes if enabled.
+     */
 	private void toggleMaze(String s) {
 		mazeEnabled = !mazeEnabled;
 
@@ -152,7 +219,12 @@ public class RobotController {
 		sendRequestAsync(mazeEnabled ? "/maze/on" + s : "/maze/off");
 		clearMovementKeys();
 	}
-
+	
+	/**
+     * Updates robot movement based on pressed keys.
+     * Handles combinations for diagonal and rotational movement.
+     * Stops movement if no relevant key is pressed.
+     */
     private void updateMovement() {
         if (reverseEnabled) return;
 
@@ -162,23 +234,30 @@ public class RobotController {
         boolean d = pressedKeys.contains(KeyCode.D);
         boolean q = pressedKeys.contains(KeyCode.Q);
         boolean e = pressedKeys.contains(KeyCode.E);
-
+		
+		// Rotation commands
         if (q && !e) { sendRequestAsync("/move/ccw"); return; }
         if (e && !q) { sendRequestAsync("/move/cw"); return; }
-
+		
+		// Diagonal movement
         if (w && a) { sendRequestAsync("/move/nw"); return; }
         if (w && d) { sendRequestAsync("/move/ne"); return; }
         if (s && a) { sendRequestAsync("/move/sw"); return; }
         if (s && d) { sendRequestAsync("/move/se"); return; }
-
+		
+		// Cardinal directions
         if (w) { sendRequestAsync("/move/north"); return; }
         if (s) { sendRequestAsync("/move/south"); return; }
         if (a) { sendRequestAsync("/move/west"); return; }
         if (d) { sendRequestAsync("/move/east"); return; }
-
+		
+		// Stop if no movement keys are pressed
         sendRequestAsync("/move/stop");
     }
-
+	
+	/**
+     * Clears all movement-related keys from the pressed set.
+     */
     private void clearMovementKeys() {
         pressedKeys.remove(KeyCode.W);
         pressedKeys.remove(KeyCode.A);
@@ -188,10 +267,21 @@ public class RobotController {
         pressedKeys.remove(KeyCode.E);
     }
 
+    /**
+     * Sends a numeric value to the robot for a specific endpoint.
+     *
+     * @param endpoint the robot endpoint
+     * @param value the value to send
+     */
     private void sendValue(String endpoint, double value) {
         sendRequestAsync(endpoint + "?value=" + value);
     }
-
+	
+	/**
+     * Sends an HTTP GET request asynchronously to the robot.
+     *
+     * @param path the request path (e.g., "/move/north")
+     */
     public void sendRequestAsync(String path) {
         new Thread(() -> {
             try {

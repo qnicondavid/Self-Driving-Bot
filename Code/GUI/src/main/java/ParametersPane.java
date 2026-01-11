@@ -9,18 +9,38 @@ import javafx.scene.text.FontWeight;
 
 import java.util.function.Consumer;
 
+/**
+ * ParametersPane is a JavaFX VBox pane that allows the user to configure
+ * various robot parameters, including speed, PID coefficients, timed reverse,
+ * turn steps, emergency stop thresholds, and path display settings.
+ *
+ * Each parameter is displayed with a label, input field, current value display,
+ * and an "Apply" button to send the change to the robot.
+ */
 public class ParametersPane extends VBox {
 	
+	// Path display pane for visualizing robot movement
 	public PathDisplayPane pathDisplayPane = new PathDisplayPane(null);
+	
+	// Robot controller used to send commands when parameters change
 	RobotController controller = null;
-
+	
+	/**
+     * Constructs a ParametersPane with all parameter sections.
+     *
+     * @param pathDisplayPane reference to the PathDisplayPane for scale adjustments
+     * @param controller      reference to RobotController for sending parameter updates
+     */
     public ParametersPane(PathDisplayPane pathDisplayPane, RobotController controller) {
 		this.pathDisplayPane = pathDisplayPane;
 		this.controller = controller;
+		
+		// Styling and spacing for the main VBox
         setPadding(new Insets(10, 20, 10, 20));
         setSpacing(20);
         setStyle("-fx-background-color: #151515;");
-
+		
+		// Add sections for different parameter groups
         getChildren().add(createSection(
                 "Speed Parameter",
                 "Set and validate the robot’s movement speed.",
@@ -89,18 +109,35 @@ public class ParametersPane extends VBox {
         ));
     }
 		
+	/**
+     * Updates the motor scale in the path display visualizer.
+     */
 	private void changeMotorScale(Number v) {
 		pathDisplayPane.setMotorScale(v.doubleValue());
 	}
 	
+	/**
+     * Updates the omega (rotation) scale in the path display visualizer.
+     */
 	private void changeOmegaScale(Number v) {
 		pathDisplayPane.setOmegaScale(v.doubleValue());
 	}
 	
+	/**
+     * Updates the movement scale in the path display visualizer.
+     */
 	private void changeMoveScale(Number v) {
 		pathDisplayPane.setMoveScale(v.doubleValue());
 	}
 
+	/**
+     * Creates a section containing a title, info label, and a set of parameters.
+     *
+     * @param titleText   the section title
+     * @param infoText    descriptive info about the section
+     * @param parameters  array of parameters to include
+     * @return a VBox containing the section
+     */
     private VBox createSection(String titleText, String infoText, Parameter[] parameters) {
         VBox section = new VBox(12);
         section.setPadding(new Insets(12));
@@ -109,17 +146,20 @@ public class ParametersPane extends VBox {
                 -fx-background-radius: 10;
                 """);
         section.setEffect(new DropShadow(8, Color.BLACK));
-
+		
+		// Section title
         Label sectionTitle = new Label(titleText);
         sectionTitle.setFont(Font.font("Consolas", FontWeight.BOLD, 20));
         sectionTitle.setStyle("-fx-text-fill: #0f9ed5;");
 
+		// Section info
         Label sectionInfo = new Label(infoText);
         sectionInfo.setFont(Font.font("Consolas", 12));
         sectionInfo.setStyle("-fx-text-fill: #b0b0b0;");
 
         section.getChildren().addAll(sectionTitle, sectionInfo);
 
+		// Add each parameter as a row
         for (Parameter param : parameters) {
             section.getChildren().add(parameterRow(param));
         }
@@ -127,6 +167,9 @@ public class ParametersPane extends VBox {
         return section;
     }
 
+	/**
+     * Creates a row for a single parameter with label, input, current value, and apply button.
+     */
     private HBox parameterRow(Parameter parameter) {
         HBox row = new HBox(10);
         row.setAlignment(Pos.CENTER_LEFT);
@@ -154,16 +197,16 @@ public class ParametersPane extends VBox {
                 -fx-font-weight: bold;
                 -fx-background-radius: 6;
                 """);
-
+		// Handle applying the parameter value
         submitButton.setOnAction(e -> {
             try {
                 Number parsedValue = parameter.parse(inputField.getText());
-
+				// Validate range
                 if (!parameter.isInRange(parsedValue)) {
                     inputField.setStyle("-fx-background-color: #5a1f1f; -fx-text-fill: white;");
                     return;
                 }
-
+				// Update parameter and reset input field styling
                 parameter.setValue(parsedValue);
                 currentValueLabel.setText("Current: " + parameter.value);
                 inputField.clear();
@@ -174,6 +217,7 @@ public class ParametersPane extends VBox {
                         """);
 
             } catch (Exception ex) {
+				// Highlight input field in red on parse error
                 inputField.setStyle("-fx-background-color: #5a1f1f; -fx-text-fill: white;");
             }
         });
@@ -182,15 +226,25 @@ public class ParametersPane extends VBox {
         return row;
     }
 
+    /**
+     * Sends the updated parameter value to the robot via the controller.
+     */
     private void onParameterChanged(String endpoint, Number value) {
         this.controller.sendRequestAsync(endpoint + "?value=" + value.doubleValue());
     }
 
-
+    /**
+     * Type of parameter: integer or double.
+     */
     enum ParameterType {
         INT, DOUBLE
     }
-
+	
+	
+	/**
+     * Represents a single configurable parameter.
+     * Contains name, type, range, current value, and a callback on change.
+     */
     static class Parameter {
         String name;
         ParameterType type;
@@ -207,14 +261,16 @@ public class ParametersPane extends VBox {
             this.value = defaultValue;
             this.onChange = onChange;
         }
-
+		
+		/** Parses a string input into the correct numeric type. */
         Number parse(String text) {
             return switch (type) {
                 case INT -> Integer.parseInt(text);
                 case DOUBLE -> Double.parseDouble(text);
             };
         }
-
+		
+		/** Checks if the value is within the allowed range. */
         boolean isInRange(Number v) {
             return switch (type) {
                 case INT -> {
@@ -227,7 +283,8 @@ public class ParametersPane extends VBox {
                 }
             };
         }
-
+		
+		/** Sets the parameter value and triggers the onChange callback. */
         void setValue(Number v) {
             this.value = v;
             onChange.accept(v);
