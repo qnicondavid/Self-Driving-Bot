@@ -711,6 +711,10 @@ void stopMaze() {
   robot.stopPID();
 }
 
+int junctionTimer = 0;
+const int JUNCTION_N = 10;
+bool junctionDetected = false;
+
 void setup() {
   mcu.enableWiFi();
 }
@@ -727,8 +731,10 @@ void mazeSolving() {
     return;
   if (inJunction()) {
     robot.stopPID();
-    inMazeSolving = false;
-    return;
+    nudge();
+    randomSpin();
+    recoverDeadEnd();
+    robot.startPID();
   }
   unsigned long now = millis();
   if (now - lastCheck > checkInterval) {
@@ -743,11 +749,41 @@ void mazeSolving() {
   pidControl();
 }
 
+void nudge() {
+  int x[4] = {baseSpeed, baseSpeed, baseSpeed, baseSpeed};
+  robot.move(x);
+  delay(300);
+  robot.stopAll();
+}
+
+void randomSpin() {
+  randomSeed(millis());
+  int d = random(0, 10000);
+  int cw[4] = { 120, -120, 120, -120 };
+  robot.move(cw);
+  delay(d);
+  robot.stopAll();
+}
+
 bool inJunction() {
   int L = irLeft.readDigital();
   int R = irRight.readDigital();
-  return L && R;
+
+  if (L && R) {
+    junctionTimer++;
+  } else {
+    junctionTimer = 0;
+    junctionDetected = false;
+  }
+
+  if (junctionTimer > JUNCTION_N && !junctionDetected) {
+    junctionDetected = true;
+    return true;
+  }
+
+  return false;
 }
+
 
 void recoverDeadEnd() {
   int cw[4] = { 120, -120, 120, -120 };
