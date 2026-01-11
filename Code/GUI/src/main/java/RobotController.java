@@ -36,7 +36,12 @@ public class RobotController {
         }
 		
 		if (code == KeyCode.T) {
-            toggleMaze();
+            toggleMaze("/random");
+            return;
+        }
+		
+		if (code == KeyCode.Y) {
+            toggleMaze("/manual");
             return;
         }
 		
@@ -131,7 +136,7 @@ public class RobotController {
 		clearMovementKeys();
 	}
 	
-	private void toggleMaze() {
+	private void toggleMaze(String s) {
 		mazeEnabled = !mazeEnabled;
 
 		if (mazeEnabled) {
@@ -144,7 +149,7 @@ public class RobotController {
 				sendRequestAsync("/move/stop");
 			}
 		}
-		sendRequestAsync(mazeEnabled ? "/maze/on" : "/maze/off");
+		sendRequestAsync(mazeEnabled ? "/maze/on" + s : "/maze/off");
 		clearMovementKeys();
 	}
 

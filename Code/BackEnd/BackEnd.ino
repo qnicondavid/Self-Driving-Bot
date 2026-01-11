@@ -1,5 +1,14 @@
 #include <SPI.h>
 #include <WiFi101.h>
+#include <vector>
+#include <queue>
+
+enum Dir {
+    LEFT = 0,
+    FORWARD = 1,
+    RIGHT = 2,
+    BACK = 3
+};
 
 int baseSpeed = 120;
 int minSpeed = -200;
@@ -26,7 +35,7 @@ int deltaD = 1;
 int timeReverse = 0;
 
 int lastCheck, checkInterval = 200;
-bool inMazeSolving;
+bool inMazeSolving, inManualMazeSolving;
 
 int turnSteps = 37;
 int turnTimeForwardStart = 1000, turnTimeForwardCorner = 70, turnTimeRotationCorner = 70;
@@ -613,7 +622,11 @@ public:
       kidnappedB(200, 20, 0);
     }
 
-    if (request.indexOf("GET /maze/on") >= 0) {
+    if (request.indexOf("GET /maze/on/manual") >= 0) {
+      startManualMaze();
+    }
+
+    if (request.indexOf("GET /maze/on/random") >= 0) {
       startMaze();
     }
 
@@ -701,6 +714,15 @@ void emergencyControl() {
   }
 }
 
+std:: queue<Dir> directions;
+
+void startManualMaze() {
+  inManualMazeSolving = true;
+  directions.push(RIGHT);
+  directions.push(LEFT);
+  robot.startPID();
+}
+
 void startMaze() {
   inMazeSolving = true;
   robot.startPID();
@@ -708,6 +730,9 @@ void startMaze() {
 
 void stopMaze() {
   inMazeSolving = false;
+  inManualMazeSolving = false;
+  while(!directions.empty())
+    directions.pop();
   robot.stopPID();
 }
 
@@ -724,6 +749,73 @@ void loop() {
   printHandler();
   pidControl();
   mazeSolving();
+  manualMazeSolving();
+}
+
+void manualMazeSolving() {
+    if (!inManualMazeSolving)
+    return;
+  if (inJunction()) {
+    robot.stopPID();
+    nudge();
+    if(!directions.empty()) {
+      goDirection(directions.front());
+      directions.pop();
+    }
+    robot.startPID();
+  }
+  unsigned long now = millis();
+  if (now - lastCheck > checkInterval) {
+    lastCheck = now;
+    robot.stopPID();
+    if (robot.getDistance() < dStop) {
+      robot.stopPID();
+      recoverDeadEnd();
+    }
+    robot.startPID();
+  }
+  pidControl();
+}
+
+void turnLeft() {
+  int ccw[4] = { -120, 120, -120, 120 };
+  robot.stopAll();
+  robot.stopAll();
+  robot.move(ccw);
+  delay(300);
+  while (1) {
+    int L = irLeft.readDigital();
+    if (L)
+      break;
+    robot.move(ccw);
+    delay(10);
+  }
+  robot.stopAll();
+}
+
+void turnRight() {
+  int cw[4] = { 120, -120, 120, -120 };
+  robot.stopAll();
+  robot.move(cw);
+  delay(300);
+  robot.stopAll();
+  while (1) {
+    int R = irRight.readDigital();
+    if (R)
+      break;
+    robot.move(cw);
+    delay(10);
+  }
+  robot.stopAll();
+}
+
+void goDirection(Dir d) {
+    switch (d) {
+        case LEFT:    turnLeft();  break;
+        case RIGHT:   turnRight(); break;
+        case FORWARD: break;
+        default:      break;
+    }
 }
 
 void mazeSolving() {

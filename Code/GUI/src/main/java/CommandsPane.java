@@ -52,7 +52,8 @@ public class CommandsPane extends VBox {
 			"Maze Solving",
 			"Press the respective key to activate or deactivate the algorithm.",
 			new String[][]{
-				{"Tremaux", "T"}
+				{"Random Choices", "T"},
+				{"Manual Choices", "Y"}
 			}
 		));
 		
