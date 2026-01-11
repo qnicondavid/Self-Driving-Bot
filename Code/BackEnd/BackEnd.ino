@@ -1,48 +1,86 @@
+// =======================
+// Includes & STL
+// =======================
 #include <SPI.h>
 #include <WiFi101.h>
-#include <vector>
 #include <queue>
 
-enum Dir {
-    LEFT = 0,
-    FORWARD = 1,
-    RIGHT = 2,
-    BACK = 3
-};
+using namespace std;
 
-int baseSpeed = 120;
-int minSpeed = -200;
-int maxSpeed = 200;
+// =======================
+// Global motion parameters
+// =======================
+int baseSpeed = 120;  // Base motor speed
+int minSpeed = -200;  // Min allowed motor speed in PID
+int maxSpeed = 200;   // Max allowed motor speed in PID
 int leftSpeed = 0;
 int rightSpeed = 0;
 
+// =======================
+// PID timing
+// =======================
 unsigned long lastMillis = 0;
 
-double e = 0.0;
-double ef = 0.0;
+// =======================
+// PID variables
+// =======================
+double e = 0.0;   // Raw error
+double ef = 0.0;  // Filtered error
 double integralSum = 0.0;
 double previousError = 0.0;
-double alpha = 0.3;
+double alpha = 0.3;  // Low-pass filter coefficient
 double kP = 200;
 double kI = 0;
 double kD = 0;
 double correction = 0.0;
 double maxIntegral = 200.0;
 
-int dStop = 1;
-int deltaD = 1;
+// =======================
+// Emergency stop parameters
+// =======================
+int dStop = 1;   // Stop distance threshold (cm)
+int deltaD = 1;  // Hysteresis for emergency release
 
 int timeReverse = 0;
 
+// =======================
+// Timing helpers
+// =======================
 int lastCheck, checkInterval = 200;
 bool inMazeSolving, inManualMazeSolving;
 
+// =======================
+// Turning parameters
+// =======================
 int turnSteps = 37;
 int turnTimeForwardStart = 1000, turnTimeForwardCorner = 70, turnTimeRotationCorner = 70;
 int turnXDirection = 1, turnYDirection = 1;
 
 int parkTime;
 
+// =======================
+// Direction enum (maze)
+// =======================
+enum Dir {
+  LEFT = 0,
+  FORWARD = 1,
+  RIGHT = 2,
+  BACK = 3
+};
+
+// =======================
+// Junction detection
+// =======================
+int junctionTimer = 0;
+const int JUNCTION_N = 10;
+bool junctionDetected = false;
+
+// Queue for manual maze directions
+queue<Dir> directions;
+
+// =======================================================
+// Microcontroller (WiFi AP + server wrapper)
+// =======================================================
 class Microcontroller {
 private:
   int csPin;
@@ -64,6 +102,7 @@ public:
     pinMode(csPin, OUTPUT);
   }
 
+  // Enable WiFi AP and start HTTP server
   void enableWiFi() {
     digitalWrite(enPin, HIGH);
     delay(100);
@@ -91,6 +130,10 @@ public:
   }
 };
 
+
+// =======================================================
+// Infrared sensor (analog + digital)
+// =======================================================
 class IrSensor {
 private:
   int analogPin;
@@ -113,6 +156,9 @@ public:
   }
 };
 
+// =======================================================
+// Ultrasonic sensor
+// =======================================================
 class UrSensor {
 private:
   int trigPin;
@@ -126,6 +172,7 @@ public:
     pinMode(echoPin, INPUT);
   }
 
+  // Returns distance in cm
   long getDistanceCM() {
     digitalWrite(trigPin, LOW);
     delayMicroseconds(2);
@@ -140,6 +187,9 @@ public:
   }
 };
 
+// =======================================================
+// Motor abstraction (PWM + direction)
+// =======================================================
 class Motor {
 private:
   int pwmPin;
@@ -159,6 +209,7 @@ public:
     pinMode(dirPin, OUTPUT);
   }
 
+  // Set motor speed and direction
   void set(int newSpeed, bool newForward) {
     speed = constrain(newSpeed, 0, 255);
     forward = newForward;
@@ -181,14 +232,19 @@ public:
     return forward;
   }
 
+  // Signed speed (for telemetry)
   int getSignedSpeed() {
     if (speed == 0) return 0;
     return forward ? speed : -speed;
   }
 };
 
+// Forward declaration
 void resetPID();
 
+// =======================================================
+// Robot abstraction (sensors + motors + logic)
+// =======================================================
 class Robot {
 private:
   IrSensor &irLeft, &irRight;
@@ -222,6 +278,7 @@ public:
       BR(br),
       mcu(mc) {}
 
+  // Stop all motors immediately
   void stopAll() {
     FL.stop();
     FR.stop();
@@ -229,6 +286,7 @@ public:
     BR.stop();
   }
 
+  // Send telemetry over WiFi
   void printInformation(Print &out) {
     snprintf(
       telemetryBuf,
@@ -262,13 +320,14 @@ public:
     out.print(telemetryBuf);
   }
 
-
+  // Enable PID control
   void startPID() {
     stopAll();
     resetPID();
     inPID = true;
   }
 
+  // Disable PID control
   void stopPID() {
     inPID = false;
     stopAll();
@@ -279,6 +338,7 @@ public:
     return inPID;
   }
 
+  // Emergency stop handling
   void engageEmergencyStop() {
     if (emergencyStop) return;
     emergencyStop = true;
@@ -315,18 +375,25 @@ public:
     BR.set(abs(speed), speed >= 0);
   }
 
+  // Move with mecanum speeds
   void move(int speeds[4]) {
     FL.set(abs(speeds[0]), speeds[0] >= 0);
     FR.set(abs(speeds[1]), speeds[1] >= 0);
     BL.set(abs(speeds[2]), speeds[2] >= 0);
     BR.set(abs(speeds[3]), speeds[3] >= 0);
   }
+
+  // Disable ultrasonic while PID is active
   long getDistance() {
     if (isInPID())
       return 999;
     return ur.getDistanceCM();
   }
 };
+
+// =======================================================
+// Hardware instances
+// =======================================================
 
 Microcontroller mcu(8, 7, 4, 2, "Group 19", "ShutDown1");
 
@@ -342,6 +409,10 @@ Motor BR(9, 10, true);
 
 Robot robot(irLeft, irRight, ur, FL, FR, BL, BR, mcu);
 
+
+// =======================================================
+// Reverse for a fixed time
+// =======================================================
 void timedReverse() {
   robot.stopAll();
   int s[4] = { -baseSpeed, -baseSpeed, -baseSpeed, -baseSpeed };
@@ -350,33 +421,52 @@ void timedReverse() {
   robot.stopAll();
 }
 
+// =======================================================
+// Complex turn maneuver (forward + rotation pattern)
+// =======================================================
 void Turn() {
   robot.stopAll();
+
+  // Forward movement
   int x[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
+
+  // Rotation movement
   int y[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
+
+  // Apply direction multipliers
   for (int i = 0; i < 4; i++) {
     x[i] = x[i] * turnXDirection;
     y[i] = y[i] * turnYDirection;
   }
+
+  // Initial forward motion
   robot.move(x);
   delay(turnTimeForwardStart);
+
+  // Stepwise forward + rotation motion
   for (int i = 0; i < turnSteps; i++) {
     robot.move(x);
     delay(turnTimeForwardCorner);
     robot.move(y);
     delay(turnTimeRotationCorner);
   }
+
+  // Final forward motion
   robot.move(x);
   delay(turnTimeForwardStart);
   robot.stopAll();
 }
 
+// =======================================================
+// Emergency PID-based approach until obstacle
+// =======================================================
 void emergencyPID() {
   robot.stopAll();
   robot.startPID();
   lastCheck = millis();
-  while(1) {
+  while (1) {
     unsigned long now = millis();
+    // Periodically check distance
     if (now - lastCheck > checkInterval) {
       lastCheck = now;
       robot.stopPID();
@@ -389,22 +479,35 @@ void emergencyPID() {
   }
 }
 
+// =======================================================
+// Park inside a box after detecting junction
+// =======================================================
 void parkBox() {
   robot.stopAll();
   robot.startPID();
-  while(!inJunction())
+
+  // Follow line until junction detected
+  while (!inJunction())
     pidControl();
   robot.stopPID();
-  int x[4] = {baseSpeed, baseSpeed, baseSpeed, baseSpeed};
+
+  // Move forward into parking spot
+  int x[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
   robot.move(x);
   delay(parkTime);
   robot.stopAll();
 }
 
+// =======================================================
+// Three-point turn maneuver
+// =======================================================
 void threePointTurn() {
   robot.stopAll();
+
   int x[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
   int y[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
+
+  // First arc
   for (int i = 0; i < 4; i++) {
     y[i] = y[i] * -1;
   }
@@ -416,6 +519,7 @@ void threePointTurn() {
   }
   robot.stopAll();
 
+  // Second arc
   for (int i = 0; i < 4; i++) {
     x[i] = x[i] * -1;
   }
@@ -427,6 +531,7 @@ void threePointTurn() {
   }
   robot.stopAll();
 
+  // Third arc
   for (int i = 0; i < 4; i++) {
     x[i] = x[i] * -1;
   }
@@ -437,16 +542,22 @@ void threePointTurn() {
     delay(turnTimeRotationCorner);
   }
   robot.stopAll();
-
 }
 
+// =======================================================
+// Kidnapped scenario A: drive until line, then PID
+// =======================================================
 void kidnappedA() {
   robot.stopAll();
-  int fw[4] = {baseSpeed, baseSpeed, baseSpeed, baseSpeed};
+  int fw[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
   robot.move(fw);
-  while (!detectLine());
+  // Drive blindly until line is detected
+  while (!detectLine())
+    ;
   robot.stopAll();
   delay(1000);
+
+  // Recover with PID
   robot.startPID();
   unsigned long start = millis();
   while (1) {
@@ -458,21 +569,32 @@ void kidnappedA() {
   robot.stopAll();
 }
 
+// =======================================================
+// Kidnapped scenario B: expanding circle search
+// =======================================================
 void kidnappedB(int steps, int time1, int time2) {
   robot.stopAll();
   int f[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
+
+  // Circular search until line is found
   while (1) {
     bool move = circleMovement(steps, time1, time2);
     if (move)
       break;
+
     robot.move(f);
     delay(20);
     robot.stopAll();
     delay(500);
+
+    // Expand search radius
     steps = steps + 50;
     time2 = time2 + 20;
   }
+
   delay(500);
+
+  // PID recovery
   robot.startPID();
   unsigned long start = millis();
   while (1) {
@@ -484,29 +606,43 @@ void kidnappedB(int steps, int time1, int time2) {
   robot.stopAll();
 }
 
+// =======================================================
+// Circular movement helper (returns true if line found)
+// =======================================================
 bool circleMovement(int steps, int time1, int time2) {
   int cw[4] = { baseSpeed, -baseSpeed, baseSpeed, -baseSpeed };
   int e[4] = { baseSpeed, -baseSpeed, -baseSpeed, baseSpeed };
+
   for (int i = 0; i < steps; i++) {
     robot.stopAll();
     if (detectLine()) return 1;
+
     robot.move(cw);
     delay(time1);
+
     robot.stopAll();
     if (detectLine()) return 1;
+
     robot.move(e);
     delay(time2);
   }
+
   robot.stopAll();
   return 0;
 }
 
+// =======================================================
+// Detect line using digital IR sensors
+// =======================================================
 bool detectLine() {
   int L = irLeft.readDigital();
   int R = irRight.readDigital();
   return L || R;
 }
 
+// =======================================================
+// HTTP request handler (robot control via WiFi)
+// =======================================================
 class RequestHandler {
 private:
   Robot &robot;
@@ -515,17 +651,25 @@ public:
   RequestHandler(Robot &r)
     : robot(r) {}
 
+  // Handle a single HTTP request
   void handle(WiFiClient &client) {
     if (!client || !client.connected()) return;
 
+    // Read the first request line
     String request = client.readStringUntil('\n');
 
+    // Flush remaining headers
     while (client.available()) client.read();
 
+    // Block movement commands if emergency stop is active
     if (robot.isEmergencyStopped() && request.indexOf("/move/") >= 0) {
       robot.stopAll();
       return;
     }
+
+    // =======================
+    // Basic movement commands
+    // =======================
 
     if (request.indexOf("GET /move/north") >= 0) {
       int north[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
@@ -557,6 +701,10 @@ public:
       robot.move(ccw);
     }
 
+    // =======================
+    // Diagonal movements
+    // =======================
+
     if (request.indexOf("GET /move/nw") >= 0) {
       int nw[4] = { 0, baseSpeed, baseSpeed, 0 };
       robot.move(nw);
@@ -577,10 +725,15 @@ public:
       robot.move(se);
     }
 
+    // Stop all movement
     if (request.indexOf("GET /move/stop") >= 0) {
       int stopMove[4] = { 0, 0, 0, 0 };
       robot.move(stopMove);
     }
+
+    // =======================
+    // PID control commands
+    // =======================
 
     if (request.indexOf("GET /pid/on") >= 0) {
       if (robot.isEmergencyStopped()) {
@@ -593,6 +746,10 @@ public:
     if (request.indexOf("GET /pid/off") >= 0) {
       robot.stopPID();
     }
+
+    // =======================
+    // Predefined maneuvers
+    // =======================
 
     if (request.indexOf("GET /reverse/perform") >= 0) {
       timedReverse();
@@ -622,6 +779,10 @@ public:
       kidnappedB(200, 20, 0);
     }
 
+    // =======================
+    // Maze control
+    // =======================
+
     if (request.indexOf("GET /maze/on/manual") >= 0) {
       startManualMaze();
     }
@@ -634,6 +795,10 @@ public:
       stopMaze();
     }
 
+
+    // =======================
+    // Parse value= parameter
+    // =======================
     int valueIndex = request.indexOf("value=");
     int value = 0;
     if (valueIndex >= 0) {
@@ -643,6 +808,9 @@ public:
       value = valStr.toInt();
     }
 
+    // =======================
+    // PID tuning
+    // =======================
     if (request.indexOf("GET /pid/kp") >= 0) kP = value;
     if (request.indexOf("GET /pid/ki") >= 0) kI = value;
     if (request.indexOf("GET /pid/kd") >= 0) kD = value;
@@ -652,8 +820,15 @@ public:
       minSpeed = -abs(value);
     }
 
+    // =======================
+    // Emergency tuning
+    // =======================
     if (request.indexOf("GET /emergency/stop") >= 0) dStop = value;
     if (request.indexOf("GET /emergency/delta") >= 0) deltaD = value;
+
+    // =======================
+    // Maneuver tuning
+    // =======================
 
     if (request.indexOf("GET /reverse/time") >= 0) timeReverse = value;
 
@@ -666,6 +841,10 @@ public:
 
     if (request.indexOf("GET /park/time") >= 0) parkTime = value;
 
+
+    // =======================
+    // HTTP response
+    // =======================
     client.println("HTTP/1.1 200 OK");
     client.println("Content-Type: text/plain");
     client.println("Connection: close");
@@ -673,23 +852,32 @@ public:
   }
 };
 
+// =======================================================
+// WiFi clients & request handler
+// =======================================================
 RequestHandler requestHandler(robot);
 
-WiFiClient streamClient;
-WiFiClient controlClient;
+WiFiClient streamClient;   // Telemetry stream
+WiFiClient controlClient;  // Control commands
 unsigned long lastSend = 0;
 
+// =======================================================
+// Handle telemetry streaming & HTTP requests
+// =======================================================
 void printHandler() {
+  // Accept telemetry client
   if (!streamClient || !streamClient.connected()) {
     WiFiClient newClient = mcu.getServer().available();
     if (newClient) streamClient = newClient;
   }
 
+  // Accept control client
   if (!controlClient || !controlClient.connected()) {
     WiFiClient newClient = mcu.getServer().available();
     if (newClient) controlClient = newClient;
   }
 
+  // Send telemetry periodically
   if (streamClient && streamClient.connected() && millis() - lastSend >= 200) {
     robot.printInformation(streamClient);
     streamClient.println("----------------------");
@@ -697,92 +885,110 @@ void printHandler() {
     lastSend = millis();
   }
 
+  // Handle incoming control commands
   if (controlClient && controlClient.connected() && controlClient.available()) {
     requestHandler.handle(controlClient);
   }
 }
 
+// =======================================================
+// Emergency distance-based control
+// =======================================================
 void emergencyControl() {
   int dist = robot.getDistance();
 
+  // Engage emergency stop if too close
   if (!robot.isEmergencyStopped() && dist <= dStop) {
     robot.engageEmergencyStop();
   }
 
+  // Release emergency stop once safe distance restored
   if (robot.isEmergencyStopped() && dist >= (dStop + deltaD)) {
     robot.releaseEmergencyStop();
   }
 }
 
-std:: queue<Dir> directions;
-
+// =======================================================
+// Start manual maze solving (predefined direction queue)
+// =======================================================
 void startManualMaze() {
   inManualMazeSolving = true;
+
+  // Preload directions (example path)
   directions.push(RIGHT);
   directions.push(LEFT);
+
   robot.startPID();
 }
 
+
+// =======================================================
+// Start random maze solving
+// =======================================================
 void startMaze() {
   inMazeSolving = true;
   robot.startPID();
 }
 
+// =======================================================
+// Stop all maze solving modes
+// =======================================================
 void stopMaze() {
   inMazeSolving = false;
   inManualMazeSolving = false;
-  while(!directions.empty())
+  while (!directions.empty())
     directions.pop();
   robot.stopPID();
 }
 
-int junctionTimer = 0;
-const int JUNCTION_N = 10;
-bool junctionDetected = false;
-
-void setup() {
-  mcu.enableWiFi();
-}
-
-void loop() {
-  emergencyControl();
-  printHandler();
-  pidControl();
-  mazeSolving();
-  manualMazeSolving();
-}
-
+// =======================================================
+// Manual maze solving logic
+// =======================================================
 void manualMazeSolving() {
-    if (!inManualMazeSolving)
+  if (!inManualMazeSolving)
     return;
+
   if (inJunction()) {
     robot.stopPID();
     nudge();
-    if(!directions.empty()) {
+
+    // Follow next queued direction
+    if (!directions.empty()) {
       goDirection(directions.front());
       directions.pop();
     }
+
     robot.startPID();
   }
+
+  // Periodic dead-end detection
   unsigned long now = millis();
   if (now - lastCheck > checkInterval) {
     lastCheck = now;
     robot.stopPID();
+
     if (robot.getDistance() < dStop) {
       robot.stopPID();
       recoverDeadEnd();
     }
+
     robot.startPID();
   }
+
   pidControl();
 }
 
+// =======================================================
+// Turn left until line is detected
+// =======================================================
 void turnLeft() {
   int ccw[4] = { -120, 120, -120, 120 };
-  robot.stopAll();
+
   robot.stopAll();
   robot.move(ccw);
   delay(300);
+
+  // Spin until left IR sees line
   while (1) {
     int L = irLeft.readDigital();
     if (L)
@@ -793,12 +999,19 @@ void turnLeft() {
   robot.stopAll();
 }
 
+
+// =======================================================
+// Turn right until line is detected
+// =======================================================
 void turnRight() {
   int cw[4] = { 120, -120, 120, -120 };
+
   robot.stopAll();
   robot.move(cw);
   delay(300);
   robot.stopAll();
+
+  // Spin until right IR sees line
   while (1) {
     int R = irRight.readDigital();
     if (R)
@@ -809,18 +1022,26 @@ void turnRight() {
   robot.stopAll();
 }
 
+// =======================================================
+// Execute a directional decision at junction
+// =======================================================
 void goDirection(Dir d) {
-    switch (d) {
-        case LEFT:    turnLeft();  break;
-        case RIGHT:   turnRight(); break;
-        case FORWARD: break;
-        default:      break;
-    }
+  switch (d) {
+    case LEFT: turnLeft(); break;
+    case RIGHT: turnRight(); break;
+    case FORWARD: break;
+    default: break;
+  }
 }
 
+// =======================================================
+// Random maze solving logic
+// =======================================================
 void mazeSolving() {
   if (!inMazeSolving)
     return;
+
+  // Junction handling
   if (inJunction()) {
     robot.stopPID();
     nudge();
@@ -828,39 +1049,56 @@ void mazeSolving() {
     recoverDeadEnd();
     robot.startPID();
   }
+
+  // Dead-end detection
   unsigned long now = millis();
   if (now - lastCheck > checkInterval) {
     lastCheck = now;
     robot.stopPID();
+
     if (robot.getDistance() < dStop) {
       robot.stopPID();
       recoverDeadEnd();
     }
+
     robot.startPID();
   }
+
   pidControl();
 }
 
+// =======================================================
+// Small forward movement to center robot on junction
+// =======================================================
 void nudge() {
-  int x[4] = {baseSpeed, baseSpeed, baseSpeed, baseSpeed};
+  int x[4] = { baseSpeed, baseSpeed, baseSpeed, baseSpeed };
   robot.move(x);
   delay(300);
   robot.stopAll();
 }
 
+// =======================================================
+// Random spin to choose a direction
+// =======================================================
 void randomSpin() {
   randomSeed(millis());
   int d = random(0, 10000);
+
   int cw[4] = { 120, -120, 120, -120 };
   robot.move(cw);
   delay(d);
   robot.stopAll();
 }
 
+
+// =======================================================
+// Junction detection using digital IR sensors
+// =======================================================
 bool inJunction() {
   int L = irLeft.readDigital();
   int R = irRight.readDigital();
 
+  // Require sustained detection
   if (L && R) {
     junctionTimer++;
   } else {
@@ -868,6 +1106,7 @@ bool inJunction() {
     junctionDetected = false;
   }
 
+  // Confirm junction only once per entry
   if (junctionTimer > JUNCTION_N && !junctionDetected) {
     junctionDetected = true;
     return true;
@@ -876,13 +1115,18 @@ bool inJunction() {
   return false;
 }
 
-
+// =======================================================
+// Rotate until line is found (dead-end recovery)
+// =======================================================
 void recoverDeadEnd() {
   int cw[4] = { 120, -120, 120, -120 };
+
   robot.stopAll();
   robot.move(cw);
   delay(300);
   robot.stopAll();
+
+  // Spin until either sensor detects line
   while (1) {
     int L = irLeft.readDigital();
     int R = irRight.readDigital();
@@ -894,6 +1138,9 @@ void recoverDeadEnd() {
   robot.stopAll();
 }
 
+// =======================================================
+// PID control loop (line following)
+// =======================================================
 void pidControl() {
   if (robot.isEmergencyStopped()) return;
   if (!robot.isInPID()) return;
@@ -902,14 +1149,18 @@ void pidControl() {
   double dt = (now - lastMillis) / 1000.0;
   if (dt <= 0.0) dt = 0.001;
 
+  // Read IR sensors
   int leftSensor = constrain(robot.getLeftIR(), 0, 1023);
   int rightSensor = constrain(robot.getRightIR(), 0, 1023);
 
+  // Error and filtered error
   e = double(leftSensor) - double(rightSensor);
   ef = alpha * e + (1.0 - alpha) * ef;
 
+  // Integral term
   integralSum += ef * dt;
 
+  // Anti-windup
   if (fabs(kI) < 1e-12) {
     if (integralSum > maxIntegral) integralSum = maxIntegral;
     if (integralSum < -maxIntegral) integralSum = -maxIntegral;
@@ -919,13 +1170,16 @@ void pidControl() {
     if (integralSum < -maxIsum) integralSum = -maxIsum;
   }
 
+  // Derivative term
   double dTerm = 0.0;
   if (dt > 0.0 && kD != 0.0) {
     dTerm = kD * (ef - previousError) / dt;
   }
 
+  // PID correction (P-only effectively)
   correction = kP * ef;
 
+  // Compute motor speeds
   int rawLeft = round(baseSpeed - correction);
   int rawRight = round(baseSpeed + correction);
 
@@ -939,6 +1193,9 @@ void pidControl() {
   lastMillis = now;
 }
 
+// =======================================================
+// Reset PID state
+// =======================================================
 void resetPID() {
   lastMillis = millis();
   e = 0.0;
@@ -948,4 +1205,22 @@ void resetPID() {
   leftSpeed = 0;
   rightSpeed = 0;
   correction = 0.0;
+}
+
+// =======================================================
+// Arduino setup
+// =======================================================
+void setup() {
+  mcu.enableWiFi();
+}
+
+// =======================================================
+// Main loop
+// =======================================================
+void loop() {
+  emergencyControl();   // Safety first
+  printHandler();       // WiFi telemetry & commands
+  pidControl();         // Line following
+  mazeSolving();        // Random maze mode
+  manualMazeSolving();  // Manual maze mode
 }
