@@ -141,3 +141,4 @@ baseSpeed = 120;
   robot.stopPID();
 }
 ```
+The baseSpeed is set to 120, after which PID is started.
