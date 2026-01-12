@@ -97,8 +97,9 @@ bool circleMovement(int steps, int time1, int time2) {
   return 0;
 }
 ```
-To start, the `circleMovment()` function is defined, when called it reads 3 inputs `steps`, `time1` and `time2`.   
-At the start of the function 2 int arrays are defined, `cw` and `e`. They both store diffrent values of the robots motors, each of them with the purpose of moving it in a diffrent direction, `e` has the values needed to move the robot to the right, and `cw` have the required values to rotate the robot to the right.    
+To start, the `circleMovment()` function is defined, when called it reads 3 inputs `steps`, `time1` and `time2`.     
+At the start of the function 2 int arrays are defined, `cw` and `e`.   
+They both store diffrent values of the robots motors, each of them with the purpose of moving it in a diffrent direction, `e` has the values needed to move the robot to the right, and `cw` have the required values to rotate the robot to the right.    
   
 A "for" loop is started, it repeats once for every `steps`.   
 The loop begins by fully stoping the robot, after which it checks to see if the sensors detect a black line, if they do the function stops and it returns a 1.    
