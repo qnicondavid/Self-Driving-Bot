@@ -121,10 +121,10 @@ while (1) {
 
 It calls the `circleMovment()` function, moving the robot in a clockwise circle and returning 1 or 0 depending on weather it encountered a line or not, the value of this function is then stored in the variable `move`.
 
-If the robot does not encounter a line, `move` will have the value of 0, the rest of the while loop plays out.
-After a short delay of 20, the robot stops completly.
-After another delay, the variables that dictate the radius of the circle made by the robot are increased and the loop starts again.
-
+If the robot does not encounter a line, `move` will have the value of 0, the rest of the while loop plays out.  
+After a short delay of 20, the robot stops completly.  
+After another delay, the variables that dictate the radius of the circle made by the robot are increased and the loop starts again.  
+  
 If the robot does encountered a line, `move` will have the value set to 1, this breaks the loop.
 
 The following code runs.
