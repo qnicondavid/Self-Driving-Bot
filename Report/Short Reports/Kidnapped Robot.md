@@ -1,8 +1,7 @@
 # Kidnapped Robot
 ---
 ## Task Description
-The robot is droped at a random position on the playing field away from the line,   
-the task is for the robot to find his way back to the line all on its own.  
+The robot is droped at a random position on the playing field away from the line, the task is for the robot to find his way back to the line all on its own.  
 ## Playing field
 The playing field is comprised of a piece of terrain with no track that is completly surrounded by black tape
 ## Kidnapped A Function
