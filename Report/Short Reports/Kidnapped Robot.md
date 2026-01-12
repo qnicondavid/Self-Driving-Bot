@@ -99,7 +99,7 @@ bool circleMovement(int steps, int time1, int time2) {
   return 0;
 }
 ```
-To start, the `circleMovment()` function is defined, when called it repeats a clockwise pattern of movment until the sensors detect a black line. upon doing so, the function will return 1.
+To start, the `circleMovment()` function is defined, when called it repeats a clockwise pattern of movment until the sensors detect a black line. upon doing so, the function will return 1, if a full rotation is performed and the sensors dont encounter a black line the function returns 0.
 
 An int array `f[4]` is defined, it stores the values of the motor speeds, all set to positive, when used will move the robot forward.
 
