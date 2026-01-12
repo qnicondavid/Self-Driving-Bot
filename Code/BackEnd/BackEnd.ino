@@ -915,8 +915,13 @@ void startManualMaze() {
   inManualMazeSolving = true;
 
   // Preload directions (example path)
-  directions.push(RIGHT);
+  directions.push(FORWARD);
+  directions.push(FORWARD);
   directions.push(LEFT);
+  directions.push(RIGHT);
+  directions.push(RIGHT);
+  directions.push(FORWARD);
+  directions.push(RIGHT);
 
   robot.startPID();
 }
