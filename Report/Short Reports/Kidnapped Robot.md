@@ -2,7 +2,7 @@
 ---
 ## Task Description
 The robot is droped at a random position on the playing field away from the line, the task is for the robot to find his way back to the line all on its own.  
-The playing field is surrounded by black tape
+The playing field is surrounded by black tape.
 ## Kidnapped A Function
 ```cpp
 void kidnappedA() {
