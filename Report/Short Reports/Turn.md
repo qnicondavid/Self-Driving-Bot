@@ -44,5 +44,10 @@ Then the robot starts the movment, first it goes forward for a predetermined amm
   
 The `for` loop that handles the turn starts, the length of the loop (`turnSteps`) is set in the gui, giving the user the ability to decide weather the turn should be a full U turn or a half turn. 
 
+The loop starts off by moving the robot using the `x` array, moving it forward for a predetermined ammount of time (`turnTimeForwardCorner`).
+
+Then the loop ends by turning the robot using the `y` array, turning for a predetermined ammount of time (`turnTimeRotationCorner`).
+
+After the loop fully ends and the robot has turned,
 
 
