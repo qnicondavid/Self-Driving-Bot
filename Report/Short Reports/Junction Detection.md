@@ -1,30 +1,7 @@
 # Junction Detection System
-## Technical Analysis Short Report
-### Mecanum-Wheeled Line-Following Robot
-
 ---
 
 ## 1. System Overview
-
-### 1.1 Hardware Configuration
-
-The junction detection system relies on two infrared sensors positioned symmetrically on the robot's front:
-
-- **Left IR Sensor**
-  - Connected to analog pin `A1` and digital pin `A0`
-  - Provides continuous analog readings (0–1023) and binary digital output
-
-- **Right IR Sensor**
-  - Connected to analog pin `A3` and digital pin `A2`
-  - Mirrors left sensor functionality for differential line detection
-
-Both sensors feature **dual‑mode operation**:
-- **Analog mode**: Continuous reflectance values for PID line‑following control
-- **Digital mode**: Binary line‑presence signals used exclusively for junction detection
-
-This architectural separation allows independent optimization of each subsystem.
-
-### 1.2 Operational Context
 
 Junction detection operates within two primary modes:
 
